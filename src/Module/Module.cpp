@@ -192,7 +192,7 @@ runtime::Task& Module
 }
 
 void Module
-::create_codelet(runtime::Task& task, std::function<int(Module &m, runtime::Task &t, const size_t frame_id)> codelet)
+::create_codelet(runtime::Task& task, std::function<int(Module &m, runtime::Task &t, const size_t frame_id)> codelet) // Définit le code de la fonction à éxecuter !
 {
 	task.create_codelet(codelet);
 }
