@@ -173,7 +173,9 @@ protected:
 	size_t create_socket_out(const std::string &name, const size_t n_elmts, const bool hack_status = false);
 	size_t create_socket_out(const std::string &name, const size_t n_elmts, const std::type_index& datatype,
 	                         const bool hack_status = false);
-	 // Modif : Ajout de créateur de task pour les inout
+
+	// Modif : Ajout de créateur de task pour les inout
+	template <typename T>
 	size_t create_socket_inout(const std::string &name, const size_t n_elmts);
 	size_t create_socket_inout(const std::string &name, const size_t n_elmts, const std::type_index& datatype); 
 

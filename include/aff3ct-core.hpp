@@ -42,6 +42,9 @@
 #ifndef INCREMENTER_HPP_
 #include <Module/Incrementer/Incrementer.hpp>
 #endif
+#ifndef INCREMENTERIO_HPP_
+#include <Module/Incrementer_io/Incrementer_io.hpp>
+#endif
 #ifndef INITIALIZER_HPP_
 #include <Module/Initializer/Initializer.hpp>
 #endif

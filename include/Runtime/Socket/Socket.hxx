@@ -196,7 +196,7 @@ void Socket
 		}
 	}
 
-	if (this->bound_socket == &s_out)
+	if (this->bound_socket == &s_out) // Si on on veut re-bind sur la même socket => On la retire !
 		this->unbind(s_out);
 
 	if (this->bound_socket != nullptr)
@@ -219,7 +219,7 @@ void Socket
 		throw tools::runtime_error(__FILE__, __LINE__, __func__, message.str());
 	}
 
-	this->bound_socket = &s_out;
+	this->bound_socket = &s_out; // La partie la plus importante du code ou se fait vraiment le bind ! 
 
 	if (std::find(s_out.bound_sockets.begin(), s_out.bound_sockets.end(), this) != s_out.bound_sockets.end())
 	{
@@ -254,7 +254,7 @@ template <typename T>
 void Socket
 ::operator=(const void *array)
 {
-	if (this->get_type() == socket_t::SIN)
+	if (this->get_type() == socket_t::SIN || this->get_type() == socket_t::SINOUT ) // Apporter une modif pour accepter les inout 
 		this->bind(array);
 	else
 	{
@@ -274,7 +274,7 @@ template <typename T>
 void Socket
 ::operator=(void *array)
 {
-	if (this->get_type() == socket_t::SIN)
+	if (this->get_type() == socket_t::SIN || this->get_type() == socket_t::SINOUT)
 		this->bind(array);
 	else
 	{
@@ -294,7 +294,7 @@ template <typename T>
 void Socket
 ::operator=(const T *array)
 {
-	if (this->get_type() == socket_t::SIN)
+	if (this->get_type() == socket_t::SIN || this->get_type() == socket_t::SINOUT)
 		this->bind(array);
 	else
 	{
@@ -314,7 +314,7 @@ template <typename T>
 void Socket
 ::operator=(T *array)
 {
-	if (this->get_type() == socket_t::SIN)
+	if (this->get_type() == socket_t::SIN || this->get_type() == socket_t::SINOUT)
 		this->bind(array);
 	else
 	{
@@ -334,7 +334,7 @@ template <typename T, class A>
 void Socket
 ::operator=(const std::vector<T,A> &vector)
 {
-	if (this->get_type() == socket_t::SIN)
+	if (this->get_type() == socket_t::SIN || this->get_type() == socket_t::SINOUT)
 		this->bind(vector);
 	else
 	{
@@ -354,7 +354,7 @@ template <typename T, class A>
 void Socket
 ::operator=(std::vector<T,A> &vector)
 {
-	if (this->get_type() == socket_t::SIN)
+	if (this->get_type() == socket_t::SIN || this->get_type() == socket_t::SINOUT)
 		this->bind(vector);
 	else
 	{
@@ -373,9 +373,13 @@ void Socket
 void Socket
 ::operator=(Socket &s)
 {
-	if (s.get_type() == socket_t::SOUT && this->get_type() == socket_t::SIN)
+	if ((s.get_type() == socket_t::SOUT || s.get_type() == socket_t::SINOUT) && (this->get_type() == socket_t::SIN || this->get_type() == socket_t::SINOUT))
 		this->bind(s);
-	else if (s.get_type() == socket_t::SIN && this->get_type() == socket_t::SOUT)
+	else if ((s.get_type() == socket_t::SIN || s.get_type() == socket_t::SINOUT ) && (this->get_type() == socket_t::SOUT || this->get_type() == socket_t::SINOUT ))
+		s.bind(*this);
+	else if (s.get_type() == socket_t::SINOUT && this->get_type() == socket_t::SINOUT) // Ajout du cas de bind des INOUT avec INOUT
+		this->bind(s);
+	else if (this->get_type() == socket_t::SINOUT && s.get_type() == socket_t::SINOUT) // Ajout du cas de bind des INOUT avec INOUT
 		s.bind(*this);
 	else
 	{
@@ -399,7 +403,7 @@ void Socket
 void Socket
 ::operator=(Task &t)
 {
-	if (this->get_type() == socket_t::SOUT)
+	if (this->get_type() == socket_t::SOUT || this->get_type() == socket_t::SINOUT)
 		t.bind(*this);
 	else
 	{

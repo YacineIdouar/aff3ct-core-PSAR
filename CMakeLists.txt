@@ -115,7 +115,16 @@ if(AFF3CT_CORE_TESTS)
                                                         POSITION_INDEPENDENT_CODE ON) # set -fpie
     list(APPEND aff3ct_core_tests_list aff3ct-core-test-simple-chain)
     list(APPEND aff3ct_core_targets_list aff3ct-core-test-simple-chain)
-
+    ###=========================================================================================###
+    #Ajout de la simple-chain-test 
+    add_executable(aff3ct-core-test-simple-chain-io $<TARGET_OBJECTS:aff3ct-core-obj>
+                                                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/simple_chain_io.cpp)
+    set_target_properties(aff3ct-core-test-simple-chain-io PROPERTIES
+                                                        OUTPUT_NAME test-simple-chain-io
+                                                        POSITION_INDEPENDENT_CODE ON) # set -fpie
+    list(APPEND aff3ct_core_tests_list aff3ct-core-test-simple-chain-io)
+    list(APPEND aff3ct_core_targets_list aff3ct-core-test-simple-chain-io)
+    ###=========================================================================================###
     add_executable(aff3ct-core-test-for-loop $<TARGET_OBJECTS:aff3ct-core-obj>
                                                  ${CMAKE_CURRENT_SOURCE_DIR}/tests/for_loop.cpp)
     set_target_properties(aff3ct-core-test-for-loop PROPERTIES

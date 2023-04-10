@@ -74,6 +74,7 @@ void Incrementer<T>
 	(*this)[inc::tsk::increment].exec(frame_id, managed_memory);
 }
 
+
 template <typename T>
 void Incrementer<T>
 ::_increment(const T *in, T *out, const size_t frame_id)

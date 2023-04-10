@@ -209,6 +209,14 @@ size_t Module
 	return task.create_socket_out(name, n_elmts * this->n_frames, datatype);
 }
 
+// Modif : Création d'une fonction pour ajout des sockets in-out 
+size_t Module
+::create_socket_inout(runtime::Task& task, const std::string &name, const size_t n_elmts, const std::type_index& datatype)
+{
+	return task.create_socket_inout(name, n_elmts * this->n_frames, datatype);
+}
+
+
 void Module
 ::register_timer(runtime::Task& task, const std::string &key)
 {

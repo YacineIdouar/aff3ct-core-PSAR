@@ -908,7 +908,7 @@ void Task
 void Task
 ::bind(Socket &s_out, const int priority)
 {
-	if (this->is_no_input_socket())
+	if (this->is_no_input_socket()) // On s'occupe de créer la socket initializer et donc utiliser la fake_socket !
 	{
 		this->fake_input_socket.reset(new Socket(*this,
 		                                         "fake",
@@ -1001,7 +1001,6 @@ template size_t Task::create_socket_out<float   >(const std::string&, const size
 template size_t Task::create_socket_out<double  >(const std::string&, const size_t, const bool);
 
 // Modif : Ajout des templates pour inout 
-
 template size_t Task::create_socket_inout<int8_t  >(const std::string&, const size_t);
 template size_t Task::create_socket_inout<uint8_t >(const std::string&, const size_t);
 template size_t Task::create_socket_inout<int16_t >(const std::string&, const size_t);
