@@ -259,7 +259,8 @@ int main(int argc, char** argv)
 	// verification of the sequence execution
 	bool tests_passed = true;
 	tid = 0;
-	/*for (auto cur_finalizer : sequence_chain.get_cloned_modules<module::Finalizer<uint8_t>>(finalizer))
+	
+	for (auto cur_finalizer : sequence_chain.get_cloned_modules<module::Finalizer<uint8_t>>(finalizer))
 	{
 		for (size_t f = 0; f < n_inter_frames; f++)
 		{
@@ -277,8 +278,8 @@ int main(int argc, char** argv)
 			}
 		}
 		tid++;
-	}*/
-
+	}
+	
 	if (tests_passed)
 		std::cout << "# " << rang::style::bold << rang::fg::green << "Tests passed!" << rang::style::reset << std::endl;
 	else

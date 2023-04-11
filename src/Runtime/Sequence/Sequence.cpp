@@ -1011,7 +1011,7 @@ tools::Digraph_node<SS>* Sequence
 
 			for (auto &s : current_task.sockets)
 			{
-				if (current_task.get_socket_type(*s) == socket_t::SOUT)
+				if (current_task.get_socket_type(*s) == socket_t::SOUT || current_task.get_socket_type(*s) == socket_t::SINOUT)
 				{
 					auto bss = s->get_bound_sockets();
 					for (auto bs : bss)
@@ -1077,7 +1077,7 @@ tools::Digraph_node<SS>* Sequence
 		{
 			for (auto &s : current_task.sockets)
 			{
-				if (current_task.get_socket_type(*s) == socket_t::SOUT)
+				if (current_task.get_socket_type(*s) == socket_t::SOUT || current_task.get_socket_type(*s) == socket_t::SINOUT)
 				{
 					auto bss = s->get_bound_sockets();
 					for (auto &bs : bss)
