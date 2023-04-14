@@ -31,8 +31,8 @@ int main(int argc, char** argv)
 	size_t n_threads = 1;//std::thread::hardware_concurrency();
 	size_t n_inter_frames = 1;
 	size_t sleep_time_us = 0;
-	size_t data_length = 100000;
-	size_t n_exec = 10;
+	size_t data_length = 1000000;
+	size_t n_exec = 100;
 	std::string dot_filepath;
 	bool no_copy_mode = true;
 	bool print_stats = false;
@@ -157,12 +157,21 @@ int main(int argc, char** argv)
 	module::Initializer<uint8_t> initializer(data_length);
 	module::Finalizer  <uint8_t> finalizer  (data_length);
 
-	std::vector<std::shared_ptr<module::Incrementer<uint8_t>>> incs(6);
-	for (size_t s = 0; s < incs.size(); s++)
+    // Définition des module d'incrémentation standard/IO
+	std::vector<std::shared_ptr<module::Incrementer_io<uint8_t>>> incs_io(6);
+    std::vector<std::shared_ptr<module::Incrementer<uint8_t>>> incs(6);
+	
+    // Initialisation des modules !
+    for (size_t s = 0; s < incs.size(); s++)
 	{
-		incs[s].reset(new module::Incrementer<uint8_t>(data_length));
-		incs[s]->set_ns(sleep_time_us * 1000);
-		incs[s]->set_custom_name("Inc" + std::to_string(s));
+		incs_io[s].reset(new module::Incrementer_io<uint8_t>(data_length));
+        incs[s].reset(new module::Incrementer<uint8_t>(data_length));
+
+		incs_io[s]->set_ns(sleep_time_us * 1000);
+        incs[s]->set_ns(sleep_time_us * 1000);
+
+		incs_io[s]->set_custom_name("Inc_io" + std::to_string(s));
+        incs[s]->set_custom_name("Inc" + std::to_string(s));
 	}
 
 	std::shared_ptr<runtime::Sequence> partial_sequence;
@@ -171,21 +180,42 @@ int main(int argc, char** argv)
 	// sockets binding
 	if (!subseq)
 	{
-		(*incs[0])[module::inc::sck::increment::in] = initializer[module::ini::sck::initialize::out];
-		for (size_t s = 0; s < incs.size() -1; s++)
-			(*incs[s+1])[module::inc::sck::increment::in] = (*incs[s])[module::inc::sck::increment::out];
-		finalizer[module::fin::sck::finalize::in] = (*incs[incs.size()-1])[module::inc::sck::increment::out];
-	}
-	else
-	{
-		for (size_t s = 0; s < incs.size() -1; s++)
+		(*incs[0])[module::inc::sck::increment::in] = initializer[module::ini::sck::initialize::out]; // Création de l'initialize et bind à la première socket !
+		 // On bind la moitié des input/output entre elle !
+		size_t s = 0;
+		for (s; s < incs.size()/2 - 1; ++s)
 			(*incs[s+1])[module::inc::sck::increment::in] = (*incs[s])[module::inc::sck::increment::out];
 
-		partial_sequence.reset(new runtime::Sequence((*incs[0])[module::inc::tsk::increment],
-		                                             (*incs[incs.size() -1])[module::inc::tsk::increment]));
+		// Réalisation de la connection hybride ! 
+		(*incs_io[0])[module::inc_io::sck::increment_io::inout] =  (*incs[s])[module::inc::sck::increment::out]; 
+		
+		// Bind des IO entre elle 
+		size_t s_io =0;
+		for (s_io; s_io < incs_io.size() -1; ++s_io)
+			(*incs_io[s_io+1])[module::inc_io::sck::increment_io::inout] = (*incs_io[s_io])[module::inc_io::sck::increment_io::inout];
+		
+		// Réalisation de la seconde connection
+		s++;
+		(*incs[s])[module::inc::sck::increment::in] = (*incs_io[s_io])[module::inc_io::sck::increment_io::inout];
+
+		// Réalisation de la seconde interconnection ! 
+		for (s; s < incs.size() - 1; ++s)
+			(*incs[s+1])[module::inc::sck::increment::in] = (*incs[s])[module::inc::sck::increment::out];
+
+
+		finalizer[module::fin::sck::finalize::in] = (*incs[incs.size()-1])[module::inc::sck::increment::out]; // Connection à la socket finalizer !
+	}
+    // Code à ne pas modifier pour le moment car pas intéressant !
+	else
+	{
+		/*for (size_t s = 0; s < incs.size() -1; s++)
+			(*incs[s+1])[module::inc_io::sck::increment_io::inout] = (*incs[s])[module::inc_io::sck::increment_io::inout];
+
+		partial_sequence.reset(new runtime::Sequence((*incs[0])[module::inc_io::tsk::increment_io],
+		                                             (*incs[incs.size() -1])[module::inc_io::tsk::increment_io]));
 		subsequence.reset(new module::Subsequence(*partial_sequence));
 		(*subsequence)[module::ssq::tsk::exec    ][ 0] = initializer   [module::ini::sck::initialize::out];
-		finalizer     [module::fin::sck::finalize::in] = (*subsequence)[module::ssq::tsk::exec      ][  1];
+		finalizer     [module::fin::sck::finalize::in] = (*subsequence)[module::ssq::tsk::exec      ][  1];*/
 	}
 
 	runtime::Sequence sequence_chain(initializer[module::ini::tsk::initialize], n_threads);
@@ -233,7 +263,7 @@ int main(int argc, char** argv)
 	auto t_start = std::chrono::steady_clock::now();
 	if (!step_by_step)
 	{
-		// execute the sequence (multi-threaded)
+		// execute the sequence (multi-threaded)       
 		sequence_chain.exec([&counter, n_exec]() { return ++counter >= n_exec; });
 	}
 	else
@@ -259,6 +289,7 @@ int main(int argc, char** argv)
 	// verification of the sequence execution
 	bool tests_passed = true;
 	tid = 0;
+	
 	for (auto cur_finalizer : sequence_chain.get_cloned_modules<module::Finalizer<uint8_t>>(finalizer))
 	{
 		for (size_t f = 0; f < n_inter_frames; f++)
@@ -266,7 +297,7 @@ int main(int argc, char** argv)
 			const auto &final_data = cur_finalizer->get_final_data()[f];
 			for (size_t d = 0; d < final_data.size(); d++)
 			{
-				auto expected = (int)(incs.size() + (tid * n_inter_frames +f));
+				auto expected = (int)(incs.size()*2 + (tid * n_inter_frames +f));
 				expected = expected % 256;
 				if (final_data[d] != expected)
 				{
@@ -278,7 +309,7 @@ int main(int argc, char** argv)
 		}
 		tid++;
 	}
-
+	
 	if (tests_passed)
 		std::cout << "# " << rang::style::bold << rang::fg::green << "Tests passed!" << rang::style::reset << std::endl;
 	else
@@ -298,16 +329,16 @@ int main(int argc, char** argv)
 	if (!subseq)
 	{
 		(*incs[0])[module::inc::sck::increment::in].unbind(initializer[module::ini::sck::initialize::out]);
-		for (size_t s = 0; s < incs.size() -1; s++)
+		for (size_t s = 0; s < incs.size()/2 -1; s++)
 			(*incs[s+1])[module::inc::sck::increment::in].unbind((*incs[s])[module::inc::sck::increment::out]);
 		finalizer[module::fin::sck::finalize::in].unbind((*incs[incs.size()-1])[module::inc::sck::increment::out]);
 	}
 	else
 	{
-		for (size_t s = 0; s < incs.size() -1; s++)
-			(*incs[s+1])[module::inc::sck::increment::in].unbind((*incs[s])[module::inc::sck::increment::out]);
+		/*for (size_t s = 0; s < incs.size() -1; s++)
+			(*incs[s+1])[module::inc_io::sck::increment_io::inout].unbind((*incs[s])[module::inc_io::sck::increment_io::inout]);
 		(*subsequence)[module::ssq::tsk::exec    ][ 0].unbind(initializer   [module::ini::sck::initialize::out]);
-		finalizer     [module::fin::sck::finalize::in].unbind((*subsequence)[module::ssq::tsk::exec      ][  1]);
+		finalizer     [module::fin::sck::finalize::in].unbind((*subsequence)[module::ssq::tsk::exec      ][  1]);*/
 	}
 
 	return test_results;

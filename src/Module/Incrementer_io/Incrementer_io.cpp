@@ -1,5 +1,6 @@
 #include <chrono>
 #include <sstream>
+#include<iostream>
 
 #include "Module/Incrementer_io/Incrementer_io.hpp"
 
@@ -80,6 +81,7 @@ void Incrementer_io<T>
 	if (this->ns)
 		t_start = std::chrono::steady_clock::now();
 
+	
 	for (size_t e = 0; e < this->n_elmts; e++)
 		inout[e] += 1;
 

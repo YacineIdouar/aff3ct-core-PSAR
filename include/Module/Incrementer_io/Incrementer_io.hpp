@@ -21,7 +21,7 @@ namespace module
 
 		namespace sck
 		{
-			enum class increment_io : size_t {inout, in, out, status };
+			enum class increment_io : size_t {inout,status };
 		}
 	}
 

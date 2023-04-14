@@ -31,8 +31,8 @@ int main(int argc, char** argv)
 	size_t n_threads = 1;//std::thread::hardware_concurrency();
 	size_t n_inter_frames = 1;
 	size_t sleep_time_us = 0;
-	size_t data_length = 1000;
-	size_t n_exec = 1;
+	size_t data_length = 100000;
+	size_t n_exec = 10;
 	std::string dot_filepath;
 	bool no_copy_mode = true;
 	bool print_stats = false;
@@ -162,7 +162,7 @@ int main(int argc, char** argv)
 	{
 		incs[s].reset(new module::Incrementer_io<uint8_t>(data_length));
 		incs[s]->set_ns(sleep_time_us * 1000);
-		incs[s]->set_custom_name("Inc" + std::to_string(s));
+		incs[s]->set_custom_name("Inc_io" + std::to_string(s));
 	}
 
 	std::shared_ptr<runtime::Sequence> partial_sequence;
@@ -176,16 +176,16 @@ int main(int argc, char** argv)
 			(*incs[s+1])[module::inc_io::sck::increment_io::inout] = (*incs[s])[module::inc_io::sck::increment_io::inout];
 		finalizer[module::fin::sck::finalize::in] = (*incs[incs.size()-1])[module::inc_io::sck::increment_io::inout];
 	}
-	else
+	else // Partie non-intéressante pour le moment !
 	{
-		for (size_t s = 0; s < incs.size() -1; s++)
+		/*for (size_t s = 0; s < incs.size() -1; s++)
 			(*incs[s+1])[module::inc_io::sck::increment_io::inout] = (*incs[s])[module::inc_io::sck::increment_io::inout];
 
 		partial_sequence.reset(new runtime::Sequence((*incs[0])[module::inc_io::tsk::increment_io],
 		                                             (*incs[incs.size() -1])[module::inc_io::tsk::increment_io]));
 		subsequence.reset(new module::Subsequence(*partial_sequence));
 		(*subsequence)[module::ssq::tsk::exec    ][ 0] = initializer   [module::ini::sck::initialize::out];
-		finalizer     [module::fin::sck::finalize::in] = (*subsequence)[module::ssq::tsk::exec      ][  1];
+		finalizer     [module::fin::sck::finalize::in] = (*subsequence)[module::ssq::tsk::exec      ][  1];*/
 	}
 
 	runtime::Sequence sequence_chain(initializer[module::ini::tsk::initialize], n_threads);
@@ -233,7 +233,7 @@ int main(int argc, char** argv)
 	auto t_start = std::chrono::steady_clock::now();
 	if (!step_by_step)
 	{
-		// execute the sequence (multi-threaded)
+		// execute the sequence (multi-threaded)       
 		sequence_chain.exec([&counter, n_exec]() { return ++counter >= n_exec; });
 	}
 	else
@@ -305,10 +305,10 @@ int main(int argc, char** argv)
 	}
 	else
 	{
-		for (size_t s = 0; s < incs.size() -1; s++)
+		/*for (size_t s = 0; s < incs.size() -1; s++)
 			(*incs[s+1])[module::inc_io::sck::increment_io::inout].unbind((*incs[s])[module::inc_io::sck::increment_io::inout]);
 		(*subsequence)[module::ssq::tsk::exec    ][ 0].unbind(initializer   [module::ini::sck::initialize::out]);
-		finalizer     [module::fin::sck::finalize::in].unbind((*subsequence)[module::ssq::tsk::exec      ][  1]);
+		finalizer     [module::fin::sck::finalize::in].unbind((*subsequence)[module::ssq::tsk::exec      ][  1]);*/
 	}
 
 	return test_results;
