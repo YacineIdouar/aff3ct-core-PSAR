@@ -158,8 +158,8 @@ int main(int argc, char** argv)
 	module::Finalizer  <uint8_t> finalizer  (data_length);
 
     // Définition des module d'incrémentation standard/IO
-	std::vector<std::shared_ptr<module::Incrementer_io<uint8_t>>> incs_io(6);
-    std::vector<std::shared_ptr<module::Incrementer<uint8_t>>> incs(6);
+	std::vector<std::shared_ptr<module::Incrementer_io<uint8_t>>> incs_io(10);
+    std::vector<std::shared_ptr<module::Incrementer<uint8_t>>> incs(10);
 	
     // Initialisation des modules !
     for (size_t s = 0; s < incs.size(); s++)
