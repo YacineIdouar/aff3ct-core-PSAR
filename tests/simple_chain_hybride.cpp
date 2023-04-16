@@ -159,19 +159,24 @@ int main(int argc, char** argv)
 
     // Définition des module d'incrémentation standard/IO
 	std::vector<std::shared_ptr<module::Incrementer_io<uint8_t>>> incs_io(10);
-    std::vector<std::shared_ptr<module::Incrementer<uint8_t>>> incs(10);
+    std::vector<std::shared_ptr<module::Incrementer<uint8_t>>> incs(20); 
 	
-    // Initialisation des modules !
+    // Initialisation des modules inout_output!
     for (size_t s = 0; s < incs.size(); s++)
 	{
-		incs_io[s].reset(new module::Incrementer_io<uint8_t>(data_length));
         incs[s].reset(new module::Incrementer<uint8_t>(data_length));
-
-		incs_io[s]->set_ns(sleep_time_us * 1000);
         incs[s]->set_ns(sleep_time_us * 1000);
-
-		incs_io[s]->set_custom_name("Inc_io" + std::to_string(s));
         incs[s]->set_custom_name("Inc" + std::to_string(s));
+	}
+
+	// Initialisation des modules IO
+
+	 for (size_t s = 0; s < incs_io.size(); s++)
+	{
+		incs_io[s].reset(new module::Incrementer_io<uint8_t>(data_length));
+		incs_io[s]->set_ns(sleep_time_us * 1000);
+        incs_io[s]->set_custom_name("Inc_io" + std::to_string(s));
+        
 	}
 
 	std::shared_ptr<runtime::Sequence> partial_sequence;
@@ -297,7 +302,7 @@ int main(int argc, char** argv)
 			const auto &final_data = cur_finalizer->get_final_data()[f];
 			for (size_t d = 0; d < final_data.size(); d++)
 			{
-				auto expected = (int)(incs.size()*2 + (tid * n_inter_frames +f));
+				auto expected = (int)(incs.size()+incs_io.size() + (tid * n_inter_frames +f));
 				expected = expected % 256;
 				if (final_data[d] != expected)
 				{
