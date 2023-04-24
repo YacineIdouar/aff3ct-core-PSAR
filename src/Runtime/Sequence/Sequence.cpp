@@ -1286,7 +1286,7 @@ void Sequence
 				// replicate the sockets binding
 				for (size_t s_id = 0; s_id < t_ref->sockets.size(); s_id++)
 				{
-					if (t_ref->get_socket_type(*t_ref->sockets[s_id]) == socket_t::SIN)
+					if (t_ref->get_socket_type(*t_ref->sockets[s_id]) == socket_t::SIN || t_ref->get_socket_type(*t_ref->sockets[s_id]) == socket_t::SINOUT) // Modif : Ajout du support pour les INOUT
 					{
 						const runtime::Socket* s_ref_out = nullptr;
 						try { s_ref_out = &t_ref->sockets[s_id]->get_bound_socket(); } catch (...) {}
