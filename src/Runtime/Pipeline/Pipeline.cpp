@@ -7,6 +7,7 @@
 #include "Module/Adaptor/Adaptor.hpp"
 #include "Module/Adaptor/Adaptor_1_to_n.hpp"
 #include "Module/Adaptor/Adaptor_n_to_1.hpp"
+#include "Module/Synchro/Adaptor_synchro.hpp"
 #include "Tools/Interface/Interface_waiting.hpp"
 #include "Tools/Exception/exception.hpp"
 #include "Runtime/Pipeline/Pipeline.hpp"
@@ -406,8 +407,70 @@ void Pipeline
 void Pipeline
 ::create_adaptors(const std::vector<size_t> &synchro_buffer_sizes, const std::vector<bool> &synchro_active_waiting)
 {
+	
+	module::Adaptor_synchro<uint8_t>* synchro;
+	// On essaye de rajouter la tache synchronise ! 
+	for (size_t sta = 0; sta < this->stages.size() -1; sta++)
+	{
+		int is_IN = 0;
+		// On vérifie le nombre de threads du stage pour savoir s'il est MT ou pas 
+		if (this->stages[sta]->get_n_threads()==1)
+			break;
+
+		
+		
+		// Sinon on est sur un étage MT, on essaye de savoir si la première tâche est IO ou pas
+		std::vector<std::vector<runtime::Task*>> tasks_per_threads = this->stages[sta]->get_tasks_per_threads(); // On récupère les taches de l'étage
+		// On fait une vérif sur la première tache !
+		auto tsk_0 = tasks_per_threads[sta][0];
+		std::shared_ptr<aff3ct::runtime::Socket> first_in = NULL;
+		for (size_t sck_id = 0; sck_id < tsk_0->sockets.size(); sck_id++)
+		{
+			auto sck = tsk_0->sockets[sck_id]; // On récupère la liste des sockets de la tache
+			if (tsk_0->get_socket_type(*sck) == socket_t::SIN)
+			{
+				is_IN = 1;
+				first_in = sck;	
+			} 
+
+		}
+		if (is_IN)
+		{
+			// On fait la recherche de la socket OUT/INOUT sur la quellle il est bind pour ajouter un synchro entre les deux 
+			for (size_t sck_id = 0; sck_id < tsk_0->sockets.size(); sck_id++)
+		{
+			auto sck = tsk_0->sockets[sck_id]; // On récupère la liste des sockets de la tache
+			if ((tsk_0->get_socket_type(*sck) == socket_t::SOUT || tsk_0->get_socket_type(*sck) == socket_t::SINOUT) && std::find(tasks_per_threads[sta].begin(),
+																																tasks_per_threads[sta].end  (),
+																																&sck->get_task()) != tasks_per_threads[sta].end()) 
+			{
+				// Il faut construire une tache synchro !!
+				synchro = new module::Adaptor_synchro<uint8_t>(sck->get_n_elmts());
+				// On réalise le bind 
+				(*synchro)[module::adp_synchro::sck::adp_sck::inout] = &first_in;
+				*sck = (*synchro)[module::adp_synchro::sck::adp_sck::inout];
+				break;
+					
+			} 
+
+		}
+		}
+
+		// On vérifie toute les sockets de la taches 
+		for (size_t tsk_id = 0; tsk_id < tasks_per_threads[sta].size(); tsk_id++)
+		{
+			auto tsk = tasks_per_threads[sta][tsk_id]; // On récupère la tâche tsk_id de l'étage 
+			
+			
+		}
+	}
+	
+	
+	
 	//                     sck out addr     occ     stage   tsk id  sck id
 	std::vector<std::tuple<runtime::Socket*, size_t, size_t, size_t, size_t>> out_sck_orphans;
+
+	
 
 	// for all the stages in the pipeline
 	for (size_t sta = 0; sta < this->stages.size() -1; sta++)
@@ -565,7 +628,7 @@ void Pipeline
 	std::map<runtime::Socket*, size_t> sck_to_adp_sck_id;
 	for (size_t sta = 0; sta < this->stages.size(); sta++)
 	{
-		const auto n_threads = this->stages[sta]->get_n_threads();
+		const auto n_threads = this->stages[sta]->get_n_threads(); // On vérifie le nombre de stages !
 		std::vector<std::vector<runtime::Task*>> tasks_per_threads = this->stages[sta]->get_tasks_per_threads();
 
 		// ------------------------------------------------------------------------------------------------------------
@@ -656,11 +719,13 @@ void Pipeline
 			passed_scks_out.clear();
 
 			// allocate the adaptor for the first thread
-			if (n_threads == 1)
+			if (n_threads == 1){
 				adp = new module::Adaptor_1_to_n(adp_n_elmts,
 				                                 adp_datatype,
 				                                 adp_buffer_size,
 				                                 adp_active_waiting);
+				synchro->set_adaptor(adp);
+			}
 			else
 				adp = new module::Adaptor_n_to_1(adp_n_elmts,
 				                                 adp_datatype,

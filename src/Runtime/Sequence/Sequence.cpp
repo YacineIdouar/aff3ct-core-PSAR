@@ -1724,6 +1724,7 @@ void Sequence
 						contents->rebind_sockets.resize(rebind_id +1);
 						contents->rebind_dataptrs.resize(rebind_id +1);
 
+                        // Partie save des données importantes !
 						for (size_t s = 0; s < pull_task->sockets.size() -1; s++)
 						{
 							if (pull_task->get_socket_type(*pull_task->sockets[s]) == socket_t::SOUT)
@@ -1743,7 +1744,8 @@ void Sequence
 								contents->rebind_dataptrs[rebind_id].push_back(dataptrs);
 							}
 						}
-
+						
+                        // Partie de l'échange des buffers !
 						modified_tasks[pull_task] = [contents, pull_task, adp_pull, rebind_id]() -> const int*
 						{
 							// active or passive waiting here
@@ -1766,7 +1768,11 @@ void Sequence
 										contents->rebind_sockets[rebind_id][sin_id][ta]->dataptr = buff;
 								}
 							}
-							adp_pull->wake_up_pusher();
+							// Il faut changer la manière de faire le bind => trouver le bon moment pour insérer une tache synchro_buffer !
+							// Put modif here 
+							if(pull_task->get_name() =="pull_n" )
+								adp_pull->wake_up_pusher();
+								
 							return status;
 						};
 					}

@@ -1,7 +1,4 @@
-include/aff3ct-core.hpp:#ifndef INCREMENTERIO_HPP_
-include/Module/Incrementer/Incrementer.hpp:#ifndef INCREMENTERIO_HPP_
-include/Module/Incrementer/Incrementer.hpp:#define INCREMENTERIO_HPP_
-include/Module/Incrementer/Incrementer.hpp:#endif /* INCREMENTERIO_HPP_ */
-include/Module/Incrementer_io/Incrementer_io.hpp:#ifndef INCREMENTERIO_HPP_
-include/Module/Incrementer_io/Incrementer_io.hpp:#define INCREMENTERIO_HPP_
-include/Module/Incrementer_io/Incrementer_io.hpp:#endif /* INCREMENTERIO_HPP_ */
+include/Module/Adaptor/Adaptor.hpp:	bool is_no_copy_push();
+include/Module/Adaptor/Adaptor_1_to_n.hxx:		if (adp.is_no_copy_push())
+include/Module/Adaptor/Adaptor_n_to_1.hxx:		if (adp.is_no_copy_push())
+src/Module/Adaptor/Adaptor.cpp:::is_no_copy_push()

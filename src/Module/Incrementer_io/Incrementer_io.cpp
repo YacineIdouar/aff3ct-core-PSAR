@@ -68,7 +68,7 @@ template <typename T>
 void Incrementer_io<T>
 ::increment_io( T *inout, const int frame_id, const bool managed_memory)
 {
-	(*this)[inc_io::sck::increment_io::inout ].bind(inout );
+	(*this)[inc_io::sck::increment_io::inout ].bind(inout);
 	(*this)[inc_io::tsk::increment_io].exec(frame_id, managed_memory);
 }
 

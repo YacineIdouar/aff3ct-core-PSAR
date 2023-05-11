@@ -18,6 +18,9 @@
 #ifndef ADAPTOR_N_TO_1_HPP_
 #include <Module/Adaptor/Adaptor_n_to_1.hpp>
 #endif
+#ifndef ADAPTOR_SYNCHRO_HPP
+#include <Module/Synchro/Adaptor_synchro.hpp>
+#endif
 #ifndef BINARYOP_HPP_
 #include <Module/Binaryop/Binaryop.hpp>
 #endif

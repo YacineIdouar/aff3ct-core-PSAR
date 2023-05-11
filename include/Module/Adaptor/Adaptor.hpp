@@ -24,7 +24,7 @@ namespace module
 {
 	namespace adp
 	{
-		enum class tsk : size_t { push_1, pull_n, push_n, pull_1, SIZE };
+		enum class tsk : size_t { push_1, pull_n, push_n, pull_1, SIZE,synchro };
 
 		namespace sck
 		{
