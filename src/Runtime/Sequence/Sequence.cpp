@@ -1726,6 +1726,7 @@ void Sequence
 
 						for (size_t s = 0; s < pull_task->sockets.size() -1; s++)
 						{
+							// Vérification de l'intéret de la ligne => faut-il l'adapter à la nouvelle config !
 							if (pull_task->get_socket_type(*pull_task->sockets[s]) == socket_t::SOUT)
 							{
 								std::vector<runtime::Socket*> bound_sockets;
@@ -1757,9 +1758,14 @@ void Sequence
 								{
 									// we start to 1 because the rebinding of the 'pull_task' is made in the
 									// 'pull_task->exec()' call (this way the debug mode is still working)
+
+									//****************************************************************************
+									// Les lignes les plus importante pour la réalisation de l'échange des buffers
 									auto swap_buff = contents->rebind_sockets[rebind_id][sin_id][1]->get_dataptr();
 									auto buff = adp_pull->get_filled_buffer(sin_id, swap_buff);
 									contents->rebind_sockets[rebind_id][sin_id][1]->dataptr = buff;
+									//****************************************************************************
+
 									// for the next tasks the same buffer 'buff' is required, an easy mistake is to re-swap
 									// and the data will be false, this is why we just bind 'buff'
 									for (size_t ta = 2; ta < contents->rebind_sockets[rebind_id][sin_id].size(); ta++)
