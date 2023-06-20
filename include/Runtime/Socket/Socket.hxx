@@ -191,7 +191,7 @@ void Socket
 		if (s_out.dataptr == nullptr)
 		{
 			std::stringstream message;
-			message << "'s_out.dataptr' can't be NULL.";
+			message << "'s_out.dataptr' can't be NULL." ;
 			throw tools::runtime_error(__FILE__, __LINE__, __func__, message.str());
 		}
 	}

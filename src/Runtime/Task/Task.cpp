@@ -598,7 +598,7 @@ size_t Task
 	if (is_autoalloc())
 	{
 		out_buffers.push_back(std::vector<uint8_t>(s.get_databytes()));
-		s.dataptr = out_buffers.back().data();
+		s.dataptr = out_buffers.back().data(); // Allocation de la mémoire !
 	}
 
 	return socket_type.size() -1;
