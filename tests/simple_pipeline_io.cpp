@@ -311,6 +311,7 @@ int main(int argc, char** argv)
 		                     }));
 		pipeline_chain->set_n_frames(n_inter_frames);
 
+		 
 		if (!dot_filepath.empty())
 		{
 			std::ofstream file(dot_filepath);
