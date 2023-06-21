@@ -228,9 +228,9 @@ void Task
 
 	// do not use 'this->status' because the dataptr can have been changed by the 'tools::Sequence' when using the no
 	// copy mode
-	int* status = (int*)this->sockets.back()->get_dataptr();
+	int* status = (int*)this->sockets.back()->get_dataptr(); // On récupère le pointeur de données de la dernière socket (socket status)
 	for (size_t w = 0; w < n_waves; w++)
-		status[w] = (int)status_t::UNKNOWN;
+		status[w] = (int)status_t::UNKNOWN; 
 
 	if ((managed_memory == false && frame_id >= 0)        ||
 		(frame_id == -1 && n_frames_per_wave == n_frames) ||
@@ -626,7 +626,7 @@ size_t Task
 	}
 }
 
-//============================== Modif : Implémentation des créateur de socket inout !===========================================
+//============================== Modif : Implémentation des créateur de socket inout ===========================================
 
 template <typename T>
 size_t Task
@@ -634,7 +634,7 @@ size_t Task
 {
 	auto &s = create_socket<T>(name, n_elmts, socket_t::SINOUT);
 	socket_type.push_back(socket_t::SINOUT);
-	last_input_socket = &s;
+	last_input_socket = &s; // Si on considère la socket inout comme une in => on doit la save !
 
 	this->set_no_input_socket(false);
 	this->n_inout_sockets++;
@@ -874,7 +874,7 @@ Task* Task
 			else
 				dataptr = (void*)t->out_buffers[out_buffers_counter++].data();
 		}
-		else if (this->get_socket_type(*s) == socket_t::SIN)
+		else if (this->get_socket_type(*s) == socket_t::SIN || this->get_socket_type(*s) == socket_t::SINOUT)
 			dataptr = s->get_dataptr();
 
 		auto s_new = std::shared_ptr<Socket>(new Socket(*t,
@@ -886,7 +886,7 @@ Task* Task
 		                                                dataptr));
 		t->sockets.push_back(s_new);
 
-		if (t->get_socket_type(*s_new) == socket_t::SIN)
+		if (t->get_socket_type(*s_new) == socket_t::SIN || t->get_socket_type(*s_new) == socket_t::SINOUT)
 			t->last_input_socket = s_new.get();
 	}
 

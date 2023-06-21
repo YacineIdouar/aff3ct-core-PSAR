@@ -1070,7 +1070,7 @@ tools::Digraph_node<SS>* Sequence
 	}
 	else // --------------------------------------------------------------------------------------------- STANDARD CASE
 	{
-		cur_subseq->get_c()->tasks.push_back(&current_task);
+		cur_subseq->get_c()->tasks.push_back(&current_task); // Les subseq héritent de module => On peut récup les tasks 
 		cur_subseq->get_c()->tasks_id.push_back(taid++);
 
 		if (std::find(lasts.begin(), lasts.end(), &current_task) == lasts.end())
@@ -1184,6 +1184,7 @@ void Sequence
 	std::vector<const tools::Digraph_node<SS>*> already_parsed_nodes;
 	collect_modules_list(sequence, already_parsed_nodes);
 
+	// On utilise un set pour éviter de dupliquer le même module plusieurs fois 
 	std::vector<MO*> modules_vec;
 	for (auto m : modules_set)
 		modules_vec.push_back(m);
