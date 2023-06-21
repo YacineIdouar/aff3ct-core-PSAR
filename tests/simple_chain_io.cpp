@@ -9,6 +9,7 @@
 
 #include <aff3ct-core.hpp>
 using namespace aff3ct;
+using namespace aff3ct::runtime;
 
 int main(int argc, char** argv)
 {
@@ -228,7 +229,7 @@ int main(int argc, char** argv)
 			aff3ct::tools::help(*incs[s]);
 		aff3ct::tools::help(finalizer);
 	}
-
+	
 	std::atomic<unsigned int> counter(0);
 	auto t_start = std::chrono::steady_clock::now();
 	if (!step_by_step)

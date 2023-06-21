@@ -10,6 +10,7 @@
 
 #include <aff3ct-core.hpp>
 using namespace aff3ct;
+using namespace aff3ct::runtime;
 
 std::ifstream::pos_type filesize(const char* filename)
 {
@@ -316,6 +317,54 @@ int main(int argc, char** argv)
 			tsk->set_stats      (print_stats); // enable the statistics
 			tsk->set_fast       (true       ); // enable the fast mode (= disable the useless verifs in the tasks)
 		}
+
+		/*----------------------------------------------------------------------------------------------------------------------*/
+								// On fait la supposition d'un seul étage pipeliné pour le moment 
+
+	// On essaye de récuprer une matrice de sockets FWD pour l'utiliser dans le pipeline 
+	std::vector<std::vector<runtime::Socket*>> matrice_fwd;
+	std::vector<runtime::Socket*> liste_fwd;
+
+	int cpt_thread = 0;
+
+	// Il faut parcourir les étages et vérifier les étages sur dupliqués
+
+	for (auto stage : pipeline_chain.get()->get_stages()){
+
+		if (stage->get_n_threads() == 1)
+			continue;
+		
+		std::cout << "Trouve l'étage pipeliné" <<std::endl;
+		// Sinon on est sur l'étage dupliqué 
+		for (size_t i=0; i < stage->get_n_threads() ; ++i){
+
+			liste_fwd.clear(); // On vide le vecteur à chaque nouveau thread 
+
+			// On doit éviter le pull
+			for(size_t j=1; j<stage->get_tasks_per_threads()[i].size(); ++j ){
+			auto task = stage->get_tasks_per_threads()[i][j];
+
+			// Si la tâche ne contient pas de socket inout => pas la peine de continuer à verifier les autres tâche qui viennent après
+			// L'hypothèse est vrai dans le cas où le parcours respecte l'ordre du bind
+			if (task->get_n_inout_sockets() == 0)
+				break;
+			for (auto socket : task->sockets){
+				if (socket.get()->get_type() == socket_t::SINOUT){
+					liste_fwd.push_back(socket.get());
+				}
+			}
+			matrice_fwd.push_back(liste_fwd);
+		}
+
+		}
+		
+	}
+
+	for (int i=0; i< matrice_fwd.size(); ++i){
+			std::cout << "Le nombre de inout est : " << matrice_fwd[i].size() << std::endl;
+	}
+
+	/*----------------------------------------------------------------------------------------------------------------------*/
 
 		auto t_start = std::chrono::steady_clock::now();
 		pipeline_chain->exec();

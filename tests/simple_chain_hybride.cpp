@@ -9,6 +9,7 @@
 
 #include <aff3ct-core.hpp>
 using namespace aff3ct;
+using namespace aff3ct::runtime;
 
 int main(int argc, char** argv)
 {
@@ -263,6 +264,35 @@ int main(int argc, char** argv)
 			aff3ct::tools::help(*incs[s]);
 		aff3ct::tools::help(finalizer);
 	}
+
+		/*----------------------------------------------------------------------------------------------------------------------*/
+	// On essaye de récuprer une matrice de sockets FWD pour l'utiliser dans le pipeline 
+	std::vector<runtime::Socket*> liste_fwd;
+
+	// Il faut parcourir les thrads
+	for (size_t i=0 ; i< sequence_chain.get_tasks_per_threads().size();++i){
+		
+		// Il faut parcourir les tasks de chaque threaed
+		for(size_t j=incs.size()/2+1; j<sequence_chain.get_tasks_per_threads()[i].size(); ++j ){
+			auto task = sequence_chain.get_tasks_per_threads()[i][j];
+
+			// Si la tâche ne contient pas de socket inout => pas la peine de continuer à verifier les autres tâche qui viennent après
+			// L'hypothèse est vrai dans le cas où le parcours respecte l'ordre du bind
+			if (task->get_n_inout_sockets() == 0)
+				break;
+			for (auto socket : task->sockets){
+				if (socket.get()->get_type() == socket_t::SINOUT){
+					liste_fwd.push_back(socket.get());
+				}
+			}
+		}
+	}
+
+
+	std::cout << "Le nombre de FWD trouvé est : " << liste_fwd.size() << std::endl; 
+
+	/*----------------------------------------------------------------------------------------------------------------------*/
+
 
 	std::atomic<unsigned int> counter(0);
 	auto t_start = std::chrono::steady_clock::now();
