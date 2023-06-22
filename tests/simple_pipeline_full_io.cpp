@@ -334,27 +334,36 @@ int main(int argc, char** argv)
 		if (stage->get_n_threads() == 1)
 			continue;
 		
-		std::cout << "Trouve l'étage pipeliné" <<std::endl;
+		
 		// Sinon on est sur l'étage dupliqué 
 		for (size_t i=0; i < stage->get_n_threads() ; ++i){
 
 			liste_fwd.clear(); // On vide le vecteur à chaque nouveau thread 
 
-			// On doit éviter le pull
+			// On doit éviter le pull => commencer par la seconde tâche 
 			for(size_t j=1; j<stage->get_tasks_per_threads()[i].size(); ++j ){
-			auto task = stage->get_tasks_per_threads()[i][j];
 
-			// Si la tâche ne contient pas de socket inout => pas la peine de continuer à verifier les autres tâche qui viennent après
-			// L'hypothèse est vrai dans le cas où le parcours respecte l'ordre du bind
-			if (task->get_n_inout_sockets() == 0)
-				break;
-			for (auto socket : task->sockets){
-				if (socket.get()->get_type() == socket_t::SINOUT){
-					liste_fwd.push_back(socket.get());
+				// On récupère la tâche 
+				auto task = stage->get_tasks_per_threads()[i][j];
+
+				bool stop = true; // Variable qui indique si on a finit de parcourir toutes les tâches FWD
+				// ON parcours toutes les sockets de la tâche
+				for (auto socket : task->sockets){
+					if (socket.get()->get_type() == socket_t::SINOUT){
+						liste_fwd.push_back(socket.get());
+						auto bound = socket.get()->get_bound_sockets(); // On récupère les sockets qui sont relié à la FWD actuelle 
+						for (auto b_sock : bound){
+							if (b_sock->get_type() == socket_t::SINOUT)	
+								stop = false;
+						}
+					}
 				}
+				matrice_fwd.push_back(liste_fwd);
+				// Nous avons vérifiée toute les premières tâche FWD
+				if (stop)
+					break;
+
 			}
-			matrice_fwd.push_back(liste_fwd);
-		}
 
 		}
 		
