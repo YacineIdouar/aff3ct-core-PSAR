@@ -401,6 +401,7 @@ void Pipeline
 
 	this->create_adaptors(synchro_buffer_sizes, synchro_active_waiting);
 	this->bind_adaptors();
+	this->create_fwd_matrix();
 }
 
 void Pipeline
@@ -920,6 +921,65 @@ void Pipeline
 
 		this->bound_adaptors = false;
 	}
+}
+
+void Pipeline
+::create_fwd_matrix()
+{
+	std::vector<std::vector<runtime::Socket*>> forward_matrix;
+	std::vector<runtime::Socket*> liste_fwd = {};
+
+	// Il faut parcourir les étages et vérifier les étages sur dupliqués
+
+	for (auto stage : this->get_stages()){
+
+		if (stage->get_n_threads() == 1)
+			continue;
+		
+		// Clear la matrice pour chaque étage
+		forward_matrix.clear();
+		auto pull_task = stage->get_tasks_per_threads()[0][0]; // on récupère la tâche pull 
+		auto adp_pull = dynamic_cast<module::Adaptor*>(&pull_task->get_module());
+		// Sinon on est sur l'étage dupliqué 
+		for (size_t i=0; i < stage->get_n_threads() ; ++i){
+
+			// Clear le vecteur pour chaque nouveau thread 
+			liste_fwd.clear(); 
+			
+
+			// On doit éviter le pull => commencer par la seconde tâche 
+			for(size_t j=1; j<stage->get_tasks_per_threads()[i].size(); ++j ){
+
+				// On récupère la tâche 
+				auto task = stage->get_tasks_per_threads()[i][j];
+
+				bool stop = true; // Variable qui indique si on a finit de parcourir toutes les tâches FWD
+				// ON parcours toutes les sockets de la tâche
+				for (auto socket : task->sockets){
+					if (socket.get()->get_type() == socket_t::SINOUT){
+						liste_fwd.push_back(socket.get());
+						auto bound = socket.get()->get_bound_sockets(); // On récupère les sockets qui sont relié à la FWD actuelle 
+						for (auto b_sock : bound){
+							if (b_sock->get_type() == socket_t::SINOUT)	
+								stop = false;
+						}
+					}
+				}
+				if (!liste_fwd.empty()){
+					forward_matrix.push_back(liste_fwd);
+					adp_pull->set_forward_matrix(forward_matrix);
+				}
+					
+				// Nous avons vérifiée toute les premières tâche FWD
+				if (stop)
+					break;
+
+			}
+
+		}
+		
+	}
+
 }
 
 void Pipeline

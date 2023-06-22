@@ -20,11 +20,15 @@ namespace runtime
 {
 class Pipeline : public tools::Interface_get_set_n_frames
 {
+
+
 protected:
 	Sequence original_sequence;
 	std::vector<std::shared_ptr<Sequence>> stages;
 	std::vector<std::pair<std::vector<std::shared_ptr<module::Adaptor>>,
 	                      std::vector<std::shared_ptr<module::Adaptor>>>> adaptors;
+
+	
 
 	//                               sck out addr      stage   tsk id  sck id  unbind_pos
 	std::vector<std::pair<std::tuple<runtime::Socket*, size_t, size_t, size_t, size_t>,
@@ -39,6 +43,7 @@ protected:
 
 	bool bound_adaptors;
 	bool auto_stop;
+	
 
 public:
 	// Pipeline(const runtime::Task &first,
@@ -146,6 +151,8 @@ public:
 protected:
 	void create_adaptors(const std::vector<size_t> &synchro_buffer_sizes = {},
 	                     const std::vector<bool> &synchro_active_waiting = {});
+	
+	void create_fwd_matrix();
 
 	void _bind_adaptors(const bool bind_adaptors = true);
 	void _unbind_adaptors(const bool bind_orphans = true);

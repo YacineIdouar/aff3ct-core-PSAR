@@ -142,3 +142,10 @@ void Adaptor
 			}
 	}
 }
+
+void Adaptor
+::set_forward_matrix(std::vector<std::vector<runtime::Socket*>> forward_matrix)
+{
+	for (auto vect : forward_matrix)
+		this->forward_matrix.push_back(vect);
+}

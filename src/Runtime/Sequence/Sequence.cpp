@@ -1721,13 +1721,17 @@ void Sequence
 						auto pull_task = task;
 						auto adp_pull = dynamic_cast<module::Adaptor*>(&pull_task->get_module());
 						adp_pull->set_no_copy_pull(true);
+						if (!adp_pull->forward_matrix.empty()){
+							std::cout << "Récupère bien la matrice" << std::endl;
+							exit(0);
+						}
 						const auto rebind_id = contents->rebind_sockets.size();
 						contents->rebind_sockets.resize(rebind_id +1);
 						contents->rebind_dataptrs.resize(rebind_id +1);
 
 						for (size_t s = 0; s < pull_task->sockets.size() -1; s++)
 						{
-							// Vérification de l'intéret de la ligne => faut-il l'adapter à la nouvelle config !
+							
 							if (pull_task->get_socket_type(*pull_task->sockets[s]) == socket_t::SOUT)
 							{
 								std::vector<runtime::Socket*> bound_sockets;
@@ -1751,6 +1755,10 @@ void Sequence
 							// active or passive waiting here
 							pull_task->exec();
 							const int* status = (int*)pull_task->sockets.back()->get_dataptr();
+
+							// Il faut faire la différence entre le cas FWD et simple 
+
+							
 
 							// rebind input sockets on the fly
 							for (size_t sin_id = 0; sin_id < contents->rebind_sockets[rebind_id].size(); sin_id++)
