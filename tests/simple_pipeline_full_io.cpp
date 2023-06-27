@@ -59,9 +59,9 @@ int main(int argc, char** argv)
 	size_t n_threads = std::thread::hardware_concurrency();
 	size_t n_inter_frames = 1;
 	size_t sleep_time_us = 5;
-	size_t data_length = 2048;
-	size_t buffer_size = 16;
-	std::string dot_filepath;
+	size_t data_length = 4096;
+	size_t buffer_size = 5;
+	std::string dot_filepath = "./dot_full_io";
 	std::string in_filepath = "./text.txt";
 	std::string out_filepath = "file.out";
 	bool no_copy_mode = true;
@@ -209,7 +209,7 @@ int main(int argc, char** argv)
 
 
     // Création de 20 modules relay_io pour le passage de la donnée en mode FWD
-    std::vector<std::shared_ptr<module::Relayer_io<uint8_t>>> rlys_io(20);
+    std::vector<std::shared_ptr<module::Relayer_io<uint8_t>>> rlys_io(3);
 	for (size_t s = 0; s < rlys_io.size(); s++)
 	{
 		rlys_io[s].reset(new module::Relayer_io<uint8_t>(data_length));
@@ -288,7 +288,7 @@ int main(int argc, char** argv)
 		                     },
 		                     {
 		                       1,                         // number of threads in the stage 0
-		                       n_threads ? n_threads : 1, // number of threads in the stage 1
+		                       4,//n_threads ? n_threads : 1, // number of threads in the stage 1
 		                       1                          // number of threads in the stage 2
 		                     },
 		                     {

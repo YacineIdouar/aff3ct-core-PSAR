@@ -1721,69 +1721,117 @@ void Sequence
 						auto pull_task = task;
 						auto adp_pull = dynamic_cast<module::Adaptor*>(&pull_task->get_module());
 						adp_pull->set_no_copy_pull(true);
-						if (!adp_pull->forward_matrix.empty()){
-							std::cout << "Récupère bien la matrice" << std::endl;
-							exit(0);
-						}
+
+						
 						const auto rebind_id = contents->rebind_sockets.size();
 						contents->rebind_sockets.resize(rebind_id +1);
 						contents->rebind_dataptrs.resize(rebind_id +1);
 
-						for (size_t s = 0; s < pull_task->sockets.size() -1; s++)
+
+						/*-----------------------------Gestion du cas FWD-----------------------------------------*/
+						if ((adp_pull->forward_vector.size()!=0) && pull_task->get_name()=="pull_n")
 						{
-							
-							if (pull_task->get_socket_type(*pull_task->sockets[s]) == socket_t::SOUT)
-							{
-								std::vector<runtime::Socket*> bound_sockets;
-								std::vector<void*> dataptrs;
 
-								bound_sockets.push_back(pull_task->sockets[s].get());
-								dataptrs.push_back(pull_task->sockets[s]->get_dataptr());
+							// On récupère les sockets qu'on sauvgarder lors de la cration
+							auto saved_sockets = adp_pull->forward_vector;
+							std::vector<void*> dataptrs;
 
-								auto bs = pull_task->sockets[s]->get_bound_sockets();
-								bound_sockets.insert(bound_sockets.end(), bs.begin(), bs.end());
-								for (auto sck : bs)
-									dataptrs.push_back(sck->get_dataptr());
-
-								contents->rebind_sockets[rebind_id].push_back(bound_sockets);
-								contents->rebind_dataptrs[rebind_id].push_back(dataptrs);
+							for (auto socket : saved_sockets){
+								dataptrs.push_back(socket->get_dataptr());
 							}
-						}
+							//contents->rebind_sockets[rebind_id].push_back(saved_sockets);
+							//contents->rebind_dataptrs[rebind_id].push_back(dataptrs);
 
-						modified_tasks[pull_task] = [contents, pull_task, adp_pull, rebind_id]() -> const int*
-						{
-							// active or passive waiting here
-							pull_task->exec();
-							const int* status = (int*)pull_task->sockets.back()->get_dataptr();
-
-							// Il faut faire la différence entre le cas FWD et simple 
-
-							
-
-							// rebind input sockets on the fly
-							for (size_t sin_id = 0; sin_id < contents->rebind_sockets[rebind_id].size(); sin_id++)
+							// Partie du rebind 
+								modified_tasks[pull_task] = [saved_sockets, pull_task, adp_pull, dataptrs]() -> const int*
 							{
-								if (contents->rebind_sockets[rebind_id][sin_id].size() > 1)
+								// active or passive waiting here
+								pull_task->exec();
+								const int* status = (int*)pull_task->sockets.back()->get_dataptr();					
+								
+								/*for (size_t sin_id = 0; sin_id < contents->rebind_sockets[rebind_id].size(); sin_id++)
 								{
-									// we start to 1 because the rebinding of the 'pull_task' is made in the
-									// 'pull_task->exec()' call (this way the debug mode is still working)
+									if (contents->rebind_sockets[rebind_id][sin_id].size() > 1)
+									{
+										auto swap_buff = contents->rebind_sockets[rebind_id][sin_id][0]->get_dataptr();
+										auto buff = adp_pull->get_filled_buffer(sin_id, swap_buff);
+										contents->rebind_sockets[rebind_id][sin_id][0]->dataptr = buff;
+									
+										// for the next tasks the same buffer 'buff' is required, an easy mistake is to re-swap
+										// and the data will be false, this is why we just bind 'buff'
+										for (size_t ta = 1; ta < contents->rebind_sockets[rebind_id][sin_id].size(); ta++)
+											contents->rebind_sockets[rebind_id][sin_id][ta]->dataptr = buff;
+									}
+								}*/
+								// rebind input sockets on the fly	pour la version Forward
+								auto swap_buff = saved_sockets[0]->get_dataptr();
+								auto buff = adp_pull->get_filled_buffer(0, swap_buff);
+								saved_sockets[0]->dataptr = buff;
+								for (size_t ta = 1; ta < saved_sockets.size(); ta++)
+											saved_sockets[ta]->dataptr = buff;
 
-									//****************************************************************************
-									// Les lignes les plus importante pour la réalisation de l'échange des buffers
-									auto swap_buff = contents->rebind_sockets[rebind_id][sin_id][1]->get_dataptr();
-									auto buff = adp_pull->get_filled_buffer(sin_id, swap_buff);
-									contents->rebind_sockets[rebind_id][sin_id][1]->dataptr = buff;
-									//****************************************************************************
+								
+								//adp_pull->wake_up_pusher();
+								return status;
+							};
+							
+							/*-----------------------------Fin Gestion du cas FWD-----------------------------------------*/
+						}
+						
+						else
+						{
+							for (size_t s = 0; s < pull_task->sockets.size() -1; s++)
+							{
+								
+								if (pull_task->get_socket_type(*pull_task->sockets[s]) == socket_t::SOUT)
+								{
+									std::vector<runtime::Socket*> bound_sockets;
+									std::vector<void*> dataptrs;
+									
 
-									// for the next tasks the same buffer 'buff' is required, an easy mistake is to re-swap
-									// and the data will be false, this is why we just bind 'buff'
-									for (size_t ta = 2; ta < contents->rebind_sockets[rebind_id][sin_id].size(); ta++)
-										contents->rebind_sockets[rebind_id][sin_id][ta]->dataptr = buff;
+									bound_sockets.push_back(pull_task->sockets[s].get());
+									dataptrs.push_back(pull_task->sockets[s]->get_dataptr());
+
+									auto bs = pull_task->sockets[s]->get_bound_sockets();
+									bound_sockets.insert(bound_sockets.end(), bs.begin(), bs.end());
+									for (auto sck : bs)
+										dataptrs.push_back(sck->get_dataptr());
+
+									contents->rebind_sockets[rebind_id].push_back(bound_sockets);
+									contents->rebind_dataptrs[rebind_id].push_back(dataptrs);
 								}
 							}
-							adp_pull->wake_up_pusher();
-							return status;
-						};
+
+								// Partie du rebind 
+								modified_tasks[pull_task] = [contents, pull_task, adp_pull, rebind_id]() -> const int*
+							{
+								// active or passive waiting here
+								pull_task->exec();
+								const int* status = (int*)pull_task->sockets.back()->get_dataptr();
+								
+								// rebind input sockets on the fly
+								for (size_t sin_id = 0; sin_id < contents->rebind_sockets[rebind_id].size(); sin_id++)
+								{
+									if (contents->rebind_sockets[rebind_id][sin_id].size() > 1)
+									{
+										// we start to 1 because the rebinding of the 'pull_task' is made in the
+										// 'pull_task->exec()' call (this way the debug mode is still working)
+										auto swap_buff = contents->rebind_sockets[rebind_id][sin_id][1]->get_dataptr();
+										auto buff = adp_pull->get_filled_buffer(sin_id, swap_buff);
+										contents->rebind_sockets[rebind_id][sin_id][1]->dataptr = buff;
+									
+										// for the next tasks the same buffer 'buff' is required, an easy mistake is to re-swap
+										// and the data will be false, this is why we just bind 'buff'
+										for (size_t ta = 2; ta < contents->rebind_sockets[rebind_id][sin_id].size(); ta++)
+											contents->rebind_sockets[rebind_id][sin_id][ta]->dataptr = buff;
+									}
+								}
+								adp_pull->wake_up_pusher();
+								return status;
+							};
+						}
+
+						
 					}
 
 					if (dynamic_cast<module::Adaptor*>(&task->get_module()) &&
@@ -1840,6 +1888,20 @@ void Sequence
 									contents->rebind_sockets[rebind_id][sout_id][ta]->dataptr = buff;
 							}
 							adp_push->wake_up_puller();
+							// Il réveille aussi le pusher du début dans le cas d'un étage en full forward !
+								if (push_task->is_last_fwd)
+							{
+								for (auto modif : contents->tasks)
+									{
+										auto pull_task = modif;
+										auto adp_pull = dynamic_cast<module::Adaptor*>(&pull_task->get_module());
+										if ( pull_task->get_name()=="pull_n"){
+											adp_pull->wake_up_pusher();	
+											break;
+										}
+									}
+							}
+
 							return status;
 						};
 					}

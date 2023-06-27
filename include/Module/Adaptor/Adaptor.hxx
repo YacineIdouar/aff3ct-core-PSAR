@@ -31,7 +31,7 @@ Adaptor
   waiting_canceled(new std::atomic<bool>(false)),
   no_copy_pull(false),
   no_copy_push(false),
-  forward_matrix({})
+  forward_vector({})
 {
 	const std::string name = "Adaptor";
 	this->set_name(name);
@@ -84,7 +84,7 @@ Adaptor
   waiting_canceled(new std::atomic<bool>(false)),
   no_copy_pull(false),
   no_copy_push(false),
-  forward_matrix({})
+  forward_vector({})
 {
 	const std::string name = "Adaptor";
 	this->set_name(name);

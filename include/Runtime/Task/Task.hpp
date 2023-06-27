@@ -91,7 +91,7 @@ protected:
 public:
 	std::shared_ptr<Socket> fake_input_socket; // Création d'une fake input (Pas intéressant pour le moment !)
 	std::vector<std::shared_ptr<Socket>> sockets;	// Un vecteur qui save les sockets ajouté à la tache (On peut avoir plusieurs output pour une tache)
-	
+	bool is_last_fwd; // Dérnière tâche fwd de l'étage !
 
 	Task(      module::Module &module,
 	     const std::string &name,
