@@ -151,9 +151,6 @@ public:
 protected:
 	void create_adaptors(const std::vector<size_t> &synchro_buffer_sizes = {},
 	                     const std::vector<bool> &synchro_active_waiting = {});
-	
-	void create_fwd_matrix();
-	void explore_thread_rec(Socket* socket, std::vector<runtime::Socket*>& liste_fwd);
 
 	void _bind_adaptors(const bool bind_adaptors = true);
 	void _unbind_adaptors(const bool bind_orphans = true);

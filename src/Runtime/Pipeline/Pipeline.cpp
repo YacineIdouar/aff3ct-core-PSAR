@@ -401,7 +401,7 @@ void Pipeline
 
 	this->create_adaptors(synchro_buffer_sizes, synchro_active_waiting);
 	this->bind_adaptors();
-	this->create_fwd_matrix();
+	//this->create_fwd_matrix();
 }
 
 void Pipeline
@@ -922,7 +922,7 @@ void Pipeline
 		this->bound_adaptors = false;
 	}
 }
-void Pipeline
+/*void Pipeline
 ::explore_thread_rec(Socket* socket, std::vector<runtime::Socket*>& liste_fwd)
 {
 	auto bound = socket->get_bound_sockets();
@@ -934,9 +934,9 @@ void Pipeline
 		if (explore_bound->get_type() == socket_t::SINOUT)
 			explore_thread_rec(explore_bound,liste_fwd);
 	}
-}
+}*/
 
-void Pipeline
+/*void Pipeline
 ::create_fwd_matrix()
 {
 	std::vector<runtime::Socket*> liste_fwd = {};
@@ -958,26 +958,30 @@ void Pipeline
 			auto pull_task = stage->get_tasks_per_threads()[i][0]; 
 			auto adp_pull = dynamic_cast<module::Adaptor*>(&pull_task->get_module());
 
-			// On récupère la première tâche et on vérifie les socckets 
-			auto task = stage->get_tasks_per_threads()[i][1];
-			for (auto socket : task->sockets){
-					if (socket.get()->get_type() == socket_t::SINOUT){
-						liste_fwd.push_back(socket.get());
-						explore_thread_rec(socket.get(), liste_fwd);
+			// On se calque les socket de type output de pull_n 
+			for (auto socket_pull : pull_task->sockets)
+			{
+				if (socket_pull.get()->get_type() == socket_t::SOUT)
+				{
+					liste_fwd.push_back(socket_pull.get()); // On fait en sorte de push la sockt de pull aussi !
+					for (auto socket : socket_pull.get()->get_bound_sockets())
+					{
+						if (socket->get_type() != socket_t::SOUT)
+						{
+							liste_fwd.push_back(socket);
+							if (socket->get_type() == socket_t::SINOUT)
+								explore_thread_rec(socket, liste_fwd);
+							adp_pull->set_forward_vector(liste_fwd);
+						}
 					}
-					else	
-						break;
-			}
-			if (!liste_fwd.empty()){
-					adp_pull->set_forward_vector(liste_fwd);
-					stage->get_tasks_per_threads()[i][stage->n_tasks - 1]->is_last_fwd = true;
 				}
+			}
 		}
 		
 		
 	}
 
-}
+}*/
 
 void Pipeline
 ::exec(const std::vector<std::function<bool(const std::vector<const int*>&)>> &stop_conditions)

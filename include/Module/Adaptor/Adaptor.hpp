@@ -61,8 +61,8 @@ protected:
 	bool no_copy_push;
 
 
-public: // On laisse la matrice en publique pour le moment !
-		std::vector<runtime::Socket*> forward_vector;
+public: 
+	std::vector<std::vector<runtime::Socket*>> forward_vector; // On aura un vecteur par socket out du pull !
 public:
 	inline size_t get_n_elmts(const size_t sid = 0) const;
 	inline size_t get_n_bytes(const size_t sid = 0) const;
