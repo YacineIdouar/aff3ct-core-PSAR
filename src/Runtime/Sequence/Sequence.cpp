@@ -1619,6 +1619,22 @@ void Sequence
 }
 
 void Sequence
+::explore_thread_rec_inverse(Socket* socket, std::vector<runtime::Socket*>& liste_fwd)
+{
+	auto bound = socket->get_bound_socket();
+	
+	if (find(liste_fwd.begin(),liste_fwd.end(),&bound)==liste_fwd.end() ){
+			std::cout << "La tâche actuelle est : " << bound.get_task().get_name() << std::endl;
+			liste_fwd.push_back(&bound);
+	}
+	if (bound.get_type() == socket_t::SINOUT){
+			explore_thread_rec(&bound,liste_fwd);
+			explore_thread_rec_inverse(&bound,liste_fwd);
+	}
+	
+}
+
+void Sequence
 ::gen_processes(const bool no_copy_mode)
 {
 	std::function<void(            tools::Digraph_node<Sub_sequence>*,
@@ -1668,7 +1684,7 @@ void Sequence
 								contents->rebind_dataptrs[rebind_id].push_back(dataptrs);
 							}
 						}
-
+ 
 						modified_tasks[select_task] = [contents, select_task, switcher, rebind_id]() -> const int*
 						{
 							select_task->exec();
@@ -1820,20 +1836,20 @@ void Sequence
 								std::vector<void*> dataptrs;
 
 								bound_sockets.push_back(push_task->sockets[s].get());
-								dataptrs.push_back(push_task->sockets[s]->get_dataptr());
-
+								
 								auto bound_socket = &push_task->sockets[s]->get_bound_socket();
 								bound_sockets.push_back(bound_socket);
-								dataptrs.push_back(bound_socket->get_dataptr());
-
-								auto &bs = bound_socket->get_bound_sockets();
-								for (size_t s = 0; s < bs.size(); s++)
-									if (&bs[s]->get_task() != push_task)
-									{
-										bound_sockets.push_back(bs[s]);
-										dataptrs.push_back(bs[s]->get_dataptr());
-									}
-
+								this->explore_thread_rec(bound_socket,bound_sockets);
+								// Si la socket est FWD il faut faiire une backward exploration
+								if (bound_socket->get_type() == socket_t::SINOUT){
+									this->explore_thread_rec_inverse(bound_socket,bound_sockets);
+									std::cout << "Passe l'étape de l'éxploration en arrière " << std::endl;
+								}
+								
+								
+								for (auto sck : bound_sockets)
+										dataptrs.push_back(sck->get_dataptr());
+										
 								contents->rebind_sockets[rebind_id].push_back(bound_sockets);
 								contents->rebind_dataptrs[rebind_id].push_back(dataptrs);
 							}
@@ -1857,20 +1873,7 @@ void Sequence
 									contents->rebind_sockets[rebind_id][sout_id][ta]->dataptr = buff;
 							}
 							adp_push->wake_up_puller();
-							// Il réveille aussi le pusher du début dans le cas d'un étage en full forward !
-							/*	if (push_task->is_last_fwd)
-							{
-								for (auto modif : contents->tasks)
-									{
-										auto pull_task = modif;
-										auto adp_pull = dynamic_cast<module::Adaptor*>(&pull_task->get_module());
-										if ( pull_task->get_name()=="pull_n"){
-											adp_pull->wake_up_pusher();	
-											break;
-										}
-									}
-							}*/
-
+	
 							return status;
 						};
 					}

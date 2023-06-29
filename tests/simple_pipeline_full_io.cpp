@@ -59,7 +59,7 @@ int main(int argc, char** argv)
 	size_t n_threads = std::thread::hardware_concurrency();
 	size_t n_inter_frames = 1;
 	size_t sleep_time_us = 5;
-	size_t data_length = 256;
+	size_t data_length = 16;
 	size_t buffer_size = 1;
 	std::string dot_filepath = "./dot_full_io";
 	std::string in_filepath = "./text.txt";
@@ -208,14 +208,17 @@ int main(int argc, char** argv)
 	module::Sink_user_binary<uint8_t> sink(data_length, out_filepath);
 
 
-    // Création de 20 modules relay_io pour le passage de la donnée en mode FWD
-    std::vector<std::shared_ptr<module::Relayer_io<uint8_t>>> rlys_io(3);
+    // Création de 3 modules relay_io pour le passage de la donnée en mode FWD
+    std::vector<std::shared_ptr<module::Relayer_io<uint8_t>>> rlys_io(2);
 	for (size_t s = 0; s < rlys_io.size(); s++)
 	{
 		rlys_io[s].reset(new module::Relayer_io<uint8_t>(data_length));
 		rlys_io[s]->set_ns(sleep_time_us * 1000);
 		rlys_io[s]->set_custom_name("Relayer_io" + std::to_string(s));
 	}
+
+	// Ajouter un nouveau module simple à la fin !
+
 
 	// sockets binding
 	(*rlys_io[0])[module::rly_io::sck::relay_io::inout] = source[module::src::sck::generate::out_data]; // Bind du premier relay_fwd avec la source
