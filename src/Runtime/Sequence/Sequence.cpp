@@ -8,6 +8,7 @@
 #include <exception>
 #include <algorithm>
 
+
 #include "Tools/Display/rang_format/rang_format.h"
 #include "Tools/Thread_pinning/Thread_pinning.hpp"
 #include "Tools/Exception/exception.hpp"
@@ -1621,17 +1622,21 @@ void Sequence
 void Sequence
 ::explore_thread_rec_inverse(Socket* socket, std::vector<runtime::Socket*>& liste_fwd)
 {
-	auto bound = socket->get_bound_socket();
+
+		auto bound = &socket->get_bound_socket();
+
+
+		
+		if (find(liste_fwd.begin(),liste_fwd.end(),bound)==liste_fwd.end() ){
+				liste_fwd.push_back(bound);
+		}
+		
+		if (bound->get_type() == socket_t::SINOUT){
+				explore_thread_rec(bound,liste_fwd);
+				explore_thread_rec_inverse(bound,liste_fwd);
+		}	
 	
-	if (find(liste_fwd.begin(),liste_fwd.end(),&bound)==liste_fwd.end() ){
-			std::cout << "La tâche actuelle est : " << bound.get_task().get_name() << std::endl;
-			liste_fwd.push_back(&bound);
-	}
-	if (bound.get_type() == socket_t::SINOUT){
-			explore_thread_rec(&bound,liste_fwd);
-			explore_thread_rec_inverse(&bound,liste_fwd);
-	}
-	
+
 }
 
 void Sequence
@@ -1832,19 +1837,19 @@ void Sequence
 						for (size_t s = 0; s < push_task->sockets.size() -1; s++)
 							if (push_task->get_socket_type(*push_task->sockets[s]) == socket_t::SIN)
 							{
+								
 								std::vector<runtime::Socket*> bound_sockets;
 								std::vector<void*> dataptrs;
 
 								bound_sockets.push_back(push_task->sockets[s].get());
 								
-								auto bound_socket = &push_task->sockets[s]->get_bound_socket();
+								auto bound_socket = &(push_task->sockets[s]->get_bound_socket());
 								bound_sockets.push_back(bound_socket);
 								this->explore_thread_rec(bound_socket,bound_sockets);
-								// Si la socket est FWD il faut faiire une backward exploration
-								if (bound_socket->get_type() == socket_t::SINOUT){
+
+								// Si la socket est FWD il faut faire une backward exploration
+								if (bound_socket->get_type() == socket_t::SINOUT)
 									this->explore_thread_rec_inverse(bound_socket,bound_sockets);
-									std::cout << "Passe l'étape de l'éxploration en arrière " << std::endl;
-								}
 								
 								
 								for (auto sck : bound_sockets)

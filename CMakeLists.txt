@@ -182,7 +182,7 @@ if(AFF3CT_CORE_TESTS)
     # list(APPEND aff3ct_core_tests_list aff3ct-core-test-simple-pipeline_io)
     list(APPEND aff3ct_core_targets_list aff3ct-core-test-simple-pipeline_io)
     ###======================================================================================================###
-    # Ajout du code pour 
+    # Ajout du code pour pipeline_full_io
     ###======================================================================================================###
     add_executable(aff3ct-core-test-simple-pipeline_full_io $<TARGET_OBJECTS:aff3ct-core-obj>
                                                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/simple_pipeline_full_io.cpp)
@@ -191,6 +191,28 @@ if(AFF3CT_CORE_TESTS)
                                                            POSITION_INDEPENDENT_CODE ON) # set -fpie
     # list(APPEND aff3ct_core_tests_list aff3ct-core-test-simple-pipeline_io)
     list(APPEND aff3ct_core_targets_list aff3ct-core-test-simple-pipeline_full_io)
+    ###======================================================================================================###
+     # Ajout du code pour pipeline_multiple_stage
+    ###======================================================================================================###
+    add_executable(aff3ct-core-test-simple-pipeline_multiple_stage $<TARGET_OBJECTS:aff3ct-core-obj>
+                                                    ${CMAKE_CURRENT_SOURCE_DIR}/tests/simple_pipeline_multiple_stage_io.cpp)
+    set_target_properties(aff3ct-core-test-simple-pipeline_multiple_stage PROPERTIES
+                                                           OUTPUT_NAME test-simple-pipeline_multiple_stage
+                                                           POSITION_INDEPENDENT_CODE ON) # set -fpie
+    # list(APPEND aff3ct_core_tests_list aff3ct-core-test-simple-pipeline_io)
+    list(APPEND aff3ct_core_targets_list aff3ct-core-test-simple-pipeline_multiple_stage)
+    ###======================================================================================================###
+
+     ###======================================================================================================###
+     # Ajout du code pour pipeline_multiple_stage
+    ###======================================================================================================###
+    add_executable(aff3ct-core-test-complexe-pipeline_inter_stage $<TARGET_OBJECTS:aff3ct-core-obj>
+                                                    ${CMAKE_CURRENT_SOURCE_DIR}/tests/complexe_pipeline_inter_stage.cpp)
+    set_target_properties(aff3ct-core-test-complexe-pipeline_inter_stage PROPERTIES
+                                                           OUTPUT_NAME test-complexe-pipeline_inter_stage
+                                                           POSITION_INDEPENDENT_CODE ON) # set -fpie
+    # list(APPEND aff3ct_core_tests_list aff3ct-core-test-simple-pipeline_io)
+    list(APPEND aff3ct_core_targets_list aff3ct-core-test-complexe-pipeline_inter_stage)
     ###======================================================================================================###
 
 endif()

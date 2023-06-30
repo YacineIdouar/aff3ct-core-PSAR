@@ -59,8 +59,8 @@ int main(int argc, char** argv)
 	size_t n_threads = std::thread::hardware_concurrency();
 	size_t n_inter_frames = 1;
 	size_t sleep_time_us = 5;
-	size_t data_length = 16;
-	size_t buffer_size = 1;
+	size_t data_length = 4096;
+	size_t buffer_size = 64;
 	std::string dot_filepath = "./dot_full_io";
 	std::string in_filepath = "./text.txt";
 	std::string out_filepath = "file.out";
@@ -291,7 +291,7 @@ int main(int argc, char** argv)
 		                     },
 		                     {
 		                       1,                         // number of threads in the stage 0
-		                       1,//n_threads ? n_threads : 1, // number of threads in the stage 1
+		                       14,//n_threads ? n_threads : 1, // number of threads in the stage 1
 		                       1                          // number of threads in the stage 2
 		                     },
 		                     {

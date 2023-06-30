@@ -10,6 +10,7 @@
 
 #include <aff3ct-core.hpp>
 using namespace aff3ct;
+using namespace aff3ct::runtime;
 
 std::ifstream::pos_type filesize(const char* filename)
 {
@@ -58,9 +59,9 @@ int main(int argc, char** argv)
 	size_t n_threads = std::thread::hardware_concurrency();
 	size_t n_inter_frames = 1;
 	size_t sleep_time_us = 5;
-	size_t data_length =512;
-	size_t buffer_size =5;
-	std::string dot_filepath = "./dot_pip_simple";
+	size_t data_length = 4096;
+	size_t buffer_size = 64;
+	std::string dot_filepath = "./dot_full_io";
 	std::string in_filepath = "./text.txt";
 	std::string out_filepath = "file.out";
 	bool no_copy_mode = true;
@@ -206,24 +207,38 @@ int main(int argc, char** argv)
 	module::Source_user_binary<uint8_t> source(data_length, in_filepath, auto_reset);
 	module::Sink_user_binary<uint8_t> sink(data_length, out_filepath);
 
-	std::vector<std::shared_ptr<module::Relayer<uint8_t>>> rlys(5);
-	for (size_t s = 0; s < rlys.size(); s++)
+
+    // Création de 3 modules relay_io pour le passage de la donnée en mode FWD
+    std::vector<std::shared_ptr<module::Relayer_io<uint8_t>>> rlys_io(20);
+	for (size_t s = 0; s < rlys_io.size(); s++)
 	{
-		rlys[s].reset(new module::Relayer<uint8_t>(data_length));
-		rlys[s]->set_ns(sleep_time_us * 1000);
-		rlys[s]->set_custom_name("Relayer" + std::to_string(s));
+		rlys_io[s].reset(new module::Relayer_io<uint8_t>(data_length));
+		rlys_io[s]->set_ns(sleep_time_us * 1000);
+		rlys_io[s]->set_custom_name("Relayer_io" + std::to_string(s));
 	}
 
-	// sockets binding
-	(*rlys[0])[module::rly::sck::relay::in] = source[module::src::sck::generate::out_data];
-	for (size_t s = 0; s < rlys.size() -1; s++)
-		(*rlys[s+1])[module::rly::sck::relay::in] = (*rlys[s])[module::rly::sck::relay::out];
-	sink[module::snk::sck::send_count::in_data] = (*rlys[rlys.size()-1])[module::rly::sck::relay::out];
-	sink[module::snk::sck::send_count::in_count] = source[module::src::sck::generate::out_count];
+	// Ajouter un nouveau module simple à la fin !
 
-	std::unique_ptr<runtime::Sequence> sequence_chain;
+
+	// sockets binding
+	(*rlys_io[0])[module::rly_io::sck::relay_io::inout] = source[module::src::sck::generate::out_data]; // Bind du premier relay_fwd avec la source
+     
+
+	for (size_t s = 0; s < rlys_io.size() -1; s++)
+		(*rlys_io[s+1])[module::rly_io::sck::relay_io::inout] = (*rlys_io[s])[module::rly_io::sck::relay_io::inout]; // Réalisation des bind dans la séquence !
+
+
+    sink[module::snk::sck::send_count::in_data] = (*rlys_io[rlys_io.size() -1])[module::rly_io::sck::relay_io::inout]; // Bind du dernier IO avec le premier élement de l'étage suivant
+	sink[module::snk::sck::send_count::in_count] = source[module::src::sck::generate::out_count];
+    
+    //On fait un branchement inter-stage
+    (*rlys_io[rlys_io.size()/4])[module::rly_io::sck::relay_io::inout] = (*rlys_io[rlys_io.size()/2])[module::rly_io::sck::relay_io::inout];
+
+ 
+	//std::unique_ptr<runtime::Sequence> sequence_chain;
 	std::unique_ptr<runtime::Pipeline> pipeline_chain;
-	if (force_sequence)
+
+	/*if (force_sequence)
 	{
 		sequence_chain.reset(new runtime::Sequence(source[module::src::tsk::generate], n_threads));
 		sequence_chain->set_n_frames(n_inter_frames);
@@ -257,7 +272,7 @@ int main(int argc, char** argv)
 					for (size_t tid = 0; tid < n_threads; tid++)
 						while (sequence_chain->exec_step(tid));
 				}
-				catch (tools::processing_aborted &) { /* do nothing */ }
+				catch (tools::processing_aborted &) { b do nothing  }
 			}
 			while (!source.is_done());
 		}
@@ -265,8 +280,7 @@ int main(int argc, char** argv)
 
 		auto elapsed_time = duration.count() / 1000.f / 1000.f;
 		std::cout << "Sequence elapsed time: " << elapsed_time << " ms" << std::endl;
-	}
-	else
+	}*/
 	{
 		pipeline_chain.reset(new runtime::Pipeline(
 		                     source[module::src::tsk::generate], // first task of the sequence
@@ -274,26 +288,40 @@ int main(int argc, char** argv)
 		                       { { &source[module::src::tsk::generate] },   // first tasks of stage 0
 		                         { &source[module::src::tsk::generate] } }, // last  tasks of stage 0
 		                       // pipeline stage 1
-		                       { { &(*rlys[             0])[module::rly::tsk::relay] },   // first tasks of stage 1
-		                         { &(*rlys[rlys.size() -1])[module::rly::tsk::relay] } }, // last  tasks of stage 1
+		                       { { &(*rlys_io[             0])[module::rly_io::tsk::relay_io] },   // first tasks of stage 1
+		                         { &(*rlys_io[rlys_io.size()/3])[module::rly_io::tsk::relay_io] } }, // last  tasks of stage 1
+
+                                 { { &(*rlys_io[(rlys_io.size()/3)+1])[module::rly_io::tsk::relay_io] },   // first tasks of stage 2
+		                         { &(*rlys_io[(rlys_io.size()/3)+1])[module::rly_io::tsk::relay_io] } },
+
+                                 { { &(*rlys_io[(rlys_io.size()/3)+2])[module::rly_io::tsk::relay_io] },   // first tasks of stage 3
+		                         { &(*rlys_io[rlys_io.size()-1])[module::rly_io::tsk::relay_io] } },
+
 		                       // pipeline stage 2
-		                       { { &sink[module::snk::tsk::send_count] },   // first tasks of stage 2
-		                         {                                     } }, // last  tasks of stage 2
+		                       { {&sink[module::snk::tsk::send_count] },   // first tasks of stage 4
+		                         {                                     } }, // last  tasks of stage 4
 		                     },
 		                     {
 		                       1,                         // number of threads in the stage 0
-		                       14,//n_threads ? n_threads : 1, // number of threads in the stage 1
-		                       1                          // number of threads in the stage 2
+		                       3,//n_threads ? n_threads : 1, // number of threads in the stage 1
+		                       1,
+                               6,
+                               1,                          // number of threads in the stage 2
 		                     },
 		                     {
 		                       buffer_size, // synchronization buffer size between stages 0 and 1
 		                       buffer_size, // synchronization buffer size between stages 1 and 2
+                               buffer_size, // synchronization buffer size between stages 2 and 3
+                               buffer_size, // synchronization buffer size between stages 3 and 4
 		                     },
 		                     {
 		                       active_waiting, // type of waiting between stages 0 and 1 (true = active, false = passive)
 		                       active_waiting, // type of waiting between stages 1 and 2 (true = active, false = passive)
+                               active_waiting, // type of waiting between stages 1 and 2 (true = active, false = passive)
+                               active_waiting, // type of waiting between stages 1 and 2 (true = active, false = passive)
 		                     }));
 		pipeline_chain->set_n_frames(n_inter_frames);
+        
 
 		if (!dot_filepath.empty())
 		{
@@ -311,6 +339,7 @@ int main(int argc, char** argv)
 			tsk->set_fast       (true       ); // enable the fast mode (= disable the useless verifs in the tasks)
 		}
 
+
 		auto t_start = std::chrono::steady_clock::now();
 		pipeline_chain->exec();
 		std::chrono::nanoseconds duration = std::chrono::steady_clock::now() - t_start;
@@ -321,7 +350,7 @@ int main(int argc, char** argv)
 
 	size_t in_filesize = filesize(in_filepath.c_str());
 	size_t n_frames = ((int)std::ceil((float)(in_filesize * 8) / (float)(data_length * n_inter_frames)));
-	auto theoretical_time = (n_frames * (rlys.size() * sleep_time_us * 1000) * n_inter_frames) / 1000.f / 1000.f / n_threads;
+	auto theoretical_time = (n_frames * ((rlys_io.size()) * sleep_time_us * 1000) * n_inter_frames) / 1000.f / 1000.f / n_threads;
 	std::cout << "Sequence theoretical time: " << theoretical_time << " ms" << std::endl;
 
 	// verification of the sequence execution
@@ -333,7 +362,7 @@ int main(int argc, char** argv)
 	unsigned int test_results = !tests_passed;
 
 	// display the statistics of the tasks (if enabled)
-	if (print_stats)
+	/*if (print_stats)
 	{
 		std::cout << "#" << std::endl;
 		if (force_sequence)
@@ -348,19 +377,25 @@ int main(int argc, char** argv)
 				tools::Stats::show(stages[s]->get_tasks_per_types(), true, false);
 			}
 		}
-	}
+	}*/
 
 	// sockets unbinding
-	if (force_sequence)
-		sequence_chain->set_n_frames(1);
-	else {
+	/*if (force_sequence)
+		sequence_chain->set_n_frames(1);*/
+	{
 		pipeline_chain->set_n_frames(1);
 		pipeline_chain->unbind_adaptors();
 	}
-	(*rlys[0])[module::rly::sck::relay::in].unbind(source[module::src::sck::generate::out_data]);
-	for (size_t s = 0; s < rlys.size() -1; s++)
-		(*rlys[s+1])[module::rly::sck::relay::in].unbind((*rlys[s])[module::rly::sck::relay::out]);
-	sink[module::snk::sck::send_count::in_data].unbind((*rlys[rlys.size()-1])[module::rly::sck::relay::out]);
+	(*rlys_io[0])[module::rly_io::sck::relay_io::inout].unbind(source[module::src::sck::generate::out_data]); // Unbind de la source et la première tache FWD
+
+
+	for (size_t s = 0; s < rlys_io.size() -1; s++)
+		(*rlys_io[s+1])[module::rly_io::sck::relay_io::inout].unbind((*rlys_io[s])[module::rly_io::sck::relay_io::inout]);
+
+    
+    (*rlys_io[rlys_io.size()/2])[module::rly_io::sck::relay_io::inout].unbind( (*rlys_io[rlys_io.size()/4])[module::rly_io::sck::relay_io::inout]);
+    
+    sink[module::snk::sck::send_count::in_data].unbind((*rlys_io[rlys_io.size() -1])[module::rly_io::sck::relay_io::inout]);
 	sink[module::snk::sck::send_count::in_count].unbind(source[module::src::sck::generate::out_count]);
 
 	return test_results;

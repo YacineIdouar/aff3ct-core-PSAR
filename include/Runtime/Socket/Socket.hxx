@@ -153,6 +153,7 @@ void Socket
 void Socket
 ::bind(Socket &s_out, const int priority)
 {
+
 	if (!is_fast())
 	{
 		if (s_out.datatype != this->datatype)
@@ -199,7 +200,7 @@ void Socket
 	if (this->bound_socket == &s_out) // Si on on veut re-bind sur la même socket => On la retire !
 		this->unbind(s_out);
 
-	if (this->bound_socket != nullptr)
+	if (this->bound_socket != nullptr && this->get_type() == socket_t::SIN)
 	{
 		std::stringstream message;
 		message << "This socket is already connected ("
@@ -219,7 +220,7 @@ void Socket
 		throw tools::runtime_error(__FILE__, __LINE__, __func__, message.str());
 	}
 
-	this->bound_socket = &s_out; // La partie la plus importante du code ou se fait vraiment le bind ! 
+	this->bound_socket = &s_out; 
 
 	if (std::find(s_out.bound_sockets.begin(), s_out.bound_sockets.end(), this) != s_out.bound_sockets.end())
 	{
@@ -544,6 +545,7 @@ size_t Socket
 
 	if (this->bound_socket != &s_out)
 	{
+
 		std::stringstream message;
 		message << "This socket is connected to a different socket than 's_out' ("
 		        << "'bound_socket->databytes'"        << " = " << this->bound_socket->databytes              << ", "
