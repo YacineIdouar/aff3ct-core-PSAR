@@ -282,7 +282,7 @@ int main(int argc, char** argv)
 		                     },
 		                     {
 		                       1,                         // number of threads in the stage 0
-		                       14,//n_threads ? n_threads : 1, // number of threads in the stage 1
+		                       1,//n_threads ? n_threads : 1, // number of threads in the stage 1
 		                       1                          // number of threads in the stage 2
 		                     },
 		                     {

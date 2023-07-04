@@ -215,6 +215,18 @@ if(AFF3CT_CORE_TESTS)
     list(APPEND aff3ct_core_targets_list aff3ct-core-test-complexe-pipeline_inter_stage)
     ###======================================================================================================###
 
+     ###======================================================================================================###
+     # Ajout du code pour pipeline_double_chain
+    ###======================================================================================================###
+    add_executable(aff3ct-core-test-simple-pipeline_double_chain $<TARGET_OBJECTS:aff3ct-core-obj>
+                                                    ${CMAKE_CURRENT_SOURCE_DIR}/tests/pipeline_double_chain.cpp)
+    set_target_properties(aff3ct-core-test-simple-pipeline_double_chain PROPERTIES
+                                                           OUTPUT_NAME test-simple-pipeline_double_chain
+                                                           POSITION_INDEPENDENT_CODE ON) # set -fpie
+    # list(APPEND aff3ct_core_tests_list aff3ct-core-test-simple-pipeline_io)
+    list(APPEND aff3ct_core_targets_list aff3ct-core-test-simple-pipeline_double_chain)
+    ###======================================================================================================###
+
 endif()
 
 # ---------------------------------------------------------------------------------------------------------------------

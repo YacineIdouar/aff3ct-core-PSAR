@@ -404,9 +404,12 @@ std::vector<std::vector<runtime::Task*>> Sequence
 				tasks_per_threads[tid].insert(tasks_per_threads[tid].end(),
 				                              cur_ss->get_c()->tasks.begin(),
 				                              cur_ss->get_c()->tasks.end());
-
-				for (auto c : cur_ss->get_children())
-					get_tasks_recursive(c, tid, already_parsed_nodes);
+				/*for (auto task : cur_ss->get_c()->tasks)
+					if (std::find(tasks_per_threads[tid].begin(),
+			              tasks_per_threads[tid].end(),
+			              task) == tasks_per_threads[tid].end())
+						  tasks_per_threads[tid].push_back(task);*/
+				
 			}
 		};
 
@@ -1071,7 +1074,7 @@ tools::Digraph_node<SS>* Sequence
 	}
 	else // --------------------------------------------------------------------------------------------- STANDARD CASE
 	{
-		cur_subseq->get_c()->tasks.push_back(&current_task); // Les subseq héritent de module => On peut récup les tasks 
+		cur_subseq->get_c()->tasks.push_back(&current_task);  
 		cur_subseq->get_c()->tasks_id.push_back(taid++);
 
 		if (std::find(lasts.begin(), lasts.end(), &current_task) == lasts.end())
@@ -1095,7 +1098,7 @@ tools::Digraph_node<SS>* Sequence
 								                                                    in_sockets_feed[&t] = 1;
 								bool t_is_select = dynamic_cast<const module::Switcher*>(&(t.get_module())) &&
 								                   t.get_name() == "select";
-								if ((!t_is_select && in_sockets_feed[&t] >= t.get_n_input_sockets() - t.get_n_static_input_sockets()) ||
+								if ((!t_is_select && in_sockets_feed[&t] >= (t.get_n_input_sockets() + t.get_n_inout_sockets()) - t.get_n_static_input_sockets()) ||
 								    ( t_is_select && t.is_last_input_socket(*bs)))
 								{
 									is_last = false;
@@ -1131,7 +1134,7 @@ tools::Digraph_node<SS>* Sequence
 						}
 					}
 				}
-				else if (current_task.get_socket_type(*s) == socket_t::SIN)
+				else if (current_task.get_socket_type(*s) == socket_t::SIN || current_task.get_socket_type(*s) == socket_t::SINOUT)
 				{
 					if (s->get_bound_sockets().size() > 1)
 					{
@@ -1796,7 +1799,6 @@ void Sequence
 								// active or passive waiting here
 								pull_task->exec();
 								const int* status = (int*)pull_task->sockets.back()->get_dataptr();
-								
 								// rebind input sockets on the fly
 								for (size_t sin_id = 0; sin_id < contents->rebind_sockets[rebind_id].size(); sin_id++)
 								{

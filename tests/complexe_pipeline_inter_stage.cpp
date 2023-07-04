@@ -12,30 +12,6 @@
 using namespace aff3ct;
 using namespace aff3ct::runtime;
 
-std::ifstream::pos_type filesize(const char* filename)
-{
-	std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
-	return in.tellg();
-}
-
-bool compare_files(const std::string& filename1, const std::string& filename2)
-{
-	std::ifstream file1(filename1, std::ifstream::ate | std::ifstream::binary); //open file at the end
-	std::ifstream file2(filename2, std::ifstream::ate | std::ifstream::binary); //open file at the end
-	const std::ifstream::pos_type fileSize = file1.tellg();
-
-	if (fileSize != file2.tellg())
-		return false; //different file size
-
-	file1.seekg(0); //rewind
-	file2.seekg(0); //rewind
-
-	std::istreambuf_iterator<char> begin1(file1);
-	std::istreambuf_iterator<char> begin2(file2);
-
-	return std::equal(begin1, std::istreambuf_iterator<char>(), begin2); //Second argument is end-of-range iterator
-}
-
 int main(int argc, char** argv)
 {
 	option longopts[] = {
@@ -59,11 +35,9 @@ int main(int argc, char** argv)
 	size_t n_threads = std::thread::hardware_concurrency();
 	size_t n_inter_frames = 1;
 	size_t sleep_time_us = 5;
-	size_t data_length = 4096;
+	size_t data_length = 16;
 	size_t buffer_size = 64;
 	std::string dot_filepath = "./dot_full_io";
-	std::string in_filepath = "./text.txt";
-	std::string out_filepath = "file.out";
 	bool no_copy_mode = true;
 	bool print_stats = false;
 	bool step_by_step = false;
@@ -95,12 +69,6 @@ int main(int argc, char** argv)
 				break;
 			case 'o':
 				dot_filepath = std::string(optarg);
-				break;
-			case 'i':
-				in_filepath = std::string(optarg);
-				break;
-			case 'j':
-				out_filepath = std::string(optarg);
 				break;
 			case 'c':
 				no_copy_mode = false;
@@ -141,12 +109,6 @@ int main(int argc, char** argv)
 				std::cout << "  -o, --dot-filepath    "
 				          << "Path to dot output file                                               "
 				          << "[" << (dot_filepath.empty() ? "empty" : "\"" + dot_filepath + "\"") << "]" << std::endl;
-				std::cout << "  -i, --in-filepath     "
-				          << "Path to the input file (used to generate bits of the chain)           "
-				          << "[" << (in_filepath.empty() ? "empty" : "\"" + in_filepath + "\"") << "]" << std::endl;
-				std::cout << "  -j, --out-filepath    "
-				          << "Path to the output file (written at the end of the chain)             "
-				          << "[" << (out_filepath.empty() ? "empty" : "\"" + out_filepath + "\"") << "]" << std::endl;
 				std::cout << "  -c, --copy-mode       "
 				          << "Enable to copy data in sequence (performance will be reduced)         "
 				          << "[" << (no_copy_mode ? "true" : "false") << "]" << std::endl;
@@ -176,7 +138,7 @@ int main(int argc, char** argv)
 	}
 
 	std::cout << "####################################" << std::endl;
-	std::cout << "# Micro-benchmark: Simple pipeline #" << std::endl;
+	std::cout << "# Micro-benchmark: Complexe pipeline #" << std::endl;
 	std::cout << "####################################" << std::endl;
 	std::cout << "#" << std::endl;
 
@@ -187,8 +149,6 @@ int main(int argc, char** argv)
 	std::cout << "#   - data_length    = " << data_length << std::endl;
 	std::cout << "#   - buffer_size    = " << buffer_size << std::endl;
 	std::cout << "#   - dot_filepath   = " << (dot_filepath.empty() ? "[empty]" : dot_filepath.c_str()) << std::endl;
-	std::cout << "#   - in_filepath    = " << (in_filepath.empty() ? "[empty]" : in_filepath.c_str()) << std::endl;
-	std::cout << "#   - out_filepath   = " << (out_filepath.empty() ? "[empty]" : out_filepath.c_str()) << std::endl;
 	std::cout << "#   - no_copy_mode   = " << (no_copy_mode ? "true" : "false") << std::endl;
 	std::cout << "#   - print_stats    = " << (print_stats ? "true" : "false") << std::endl;
 	std::cout << "#   - step_by_step   = " << (step_by_step ? "true" : "false") << std::endl;
@@ -204,163 +164,268 @@ int main(int argc, char** argv)
 
 	// modules creation
 	const bool auto_reset = false;
-	module::Source_user_binary<uint8_t> source(data_length, in_filepath, auto_reset);
-	module::Sink_user_binary<uint8_t> sink(data_length, out_filepath);
+	// modules creation
+	module::Initializer<uint8_t> initializer(data_length);
+	module::Finalizer  <uint8_t> finalizer  (data_length);
 
-
-    // Création de 3 modules relay_io pour le passage de la donnée en mode FWD
-    std::vector<std::shared_ptr<module::Relayer_io<uint8_t>>> rlys_io(20);
-	for (size_t s = 0; s < rlys_io.size(); s++)
+	std::vector<std::shared_ptr<module::Incrementer_io<uint8_t>>> incs(5);
+	for (size_t s = 0; s < incs.size(); s++)
 	{
-		rlys_io[s].reset(new module::Relayer_io<uint8_t>(data_length));
-		rlys_io[s]->set_ns(sleep_time_us * 1000);
-		rlys_io[s]->set_custom_name("Relayer_io" + std::to_string(s));
+		incs[s].reset(new module::Incrementer_io<uint8_t>(data_length));
+		incs[s]->set_ns(sleep_time_us * 1000);
+		incs[s]->set_custom_name("Inc_io" + std::to_string(s));
 	}
 
-	// Ajouter un nouveau module simple à la fin !
-
-
-	// sockets binding
-	(*rlys_io[0])[module::rly_io::sck::relay_io::inout] = source[module::src::sck::generate::out_data]; // Bind du premier relay_fwd avec la source
-     
-
-	for (size_t s = 0; s < rlys_io.size() -1; s++)
-		(*rlys_io[s+1])[module::rly_io::sck::relay_io::inout] = (*rlys_io[s])[module::rly_io::sck::relay_io::inout]; // Réalisation des bind dans la séquence !
-
-
-    sink[module::snk::sck::send_count::in_data] = (*rlys_io[rlys_io.size() -1])[module::rly_io::sck::relay_io::inout]; // Bind du dernier IO avec le premier élement de l'étage suivant
-	sink[module::snk::sck::send_count::in_count] = source[module::src::sck::generate::out_count];
-    
-    //On fait un branchement inter-stage
-    (*rlys_io[rlys_io.size()/4])[module::rly_io::sck::relay_io::inout] = (*rlys_io[rlys_io.size()/2])[module::rly_io::sck::relay_io::inout];
-
- 
-	//std::unique_ptr<runtime::Sequence> sequence_chain;
-	std::unique_ptr<runtime::Pipeline> pipeline_chain;
-
-	/*if (force_sequence)
+	std::shared_ptr<module::Incrementer<uint8_t>> inc_calssique;
+	inc_calssique.reset(new module::Incrementer<uint8_t>(data_length));
+	inc_calssique->set_ns(sleep_time_us * 1000);
+	inc_calssique->set_custom_name("Inc");
+	/****************************************************************************************************************************/
+	// Création d'un nouveau module Stateless
+	module::Stateless multi_comp;
+	multi_comp.set_name("Multiplier_comparator");
+	auto& task_multi_comp = multi_comp.create_task("multiply_compare");
+	auto sock_0 = multi_comp.create_socket_inout<uint8_t>(task_multi_comp,"inout_0",data_length);
+	auto sock_1 = multi_comp.create_socket_inout<uint8_t>(task_multi_comp,"inout_1",data_length);
+	
+	multi_comp.create_codelet(task_multi_comp,[sock_0, sock_1,data_length](module::Module &m, runtime::Task &t, const size_t frame_id) -> int
 	{
-		sequence_chain.reset(new runtime::Sequence(source[module::src::tsk::generate], n_threads));
-		sequence_chain->set_n_frames(n_inter_frames);
-		sequence_chain->set_no_copy_mode(no_copy_mode);
-
-		if (!dot_filepath.empty())
-		{
-			std::ofstream file(dot_filepath);
-			sequence_chain->export_dot(file);
+		auto &mul_com = static_cast<module::Stateless&>(m);
+		auto tab_0 = static_cast<uint8_t*>(t[sock_0].get_dataptr()); // Récupère le tableau de base qu'on doit multiplier
+		auto tab_1 = (uint8_t*)(t[sock_1].get_dataptr()); // Le tableau après n addition
+		// Réalisation de la multiplication
+		for (size_t i=0; i<data_length ;++i){
+			tab_0[i] = tab_0[i]*7;
 		}
-
-		// configuration of the sequence tasks
-		for (auto& mod : sequence_chain->get_modules<module::Module>(false)) for (auto& tsk : mod->tasks)
-		{
-			tsk->reset          (           );
-			tsk->set_debug      (debug      ); // disable the debug mode
-			tsk->set_debug_limit(16         ); // display only the 16 first bits if the debug mode is enabled
-			tsk->set_stats      (print_stats); // enable the statistics
-			tsk->set_fast       (true       ); // enable the fast mode (= disable the useless verifs in the tasks)
-		}
-
-		auto t_start = std::chrono::steady_clock::now();
-		if (!step_by_step)
-			sequence_chain->exec();
-		else
-		{
-			do
-			{
-				try
-				{
-					for (size_t tid = 0; tid < n_threads; tid++)
-						while (sequence_chain->exec_step(tid));
-				}
-				catch (tools::processing_aborted &) { b do nothing  }
+		// La comparaison des valeurs 
+		for (size_t i=0;i<data_length;i++)
+			if(tab_0[i] != tab_1[i]){
+				std::cout << "Les valuers sont différentes !" << " Tab_0 : " << unsigned (tab_0[i]) <<  " Tab_1 : " << unsigned (tab_1[i]) << std::endl;
+				return runtime::status_t::FAILURE;
 			}
-			while (!source.is_done());
-		}
-		std::chrono::nanoseconds duration = std::chrono::steady_clock::now() - t_start;
+		std::cout << "Toutes les valeurs sont les même !!" << std::endl;
+		return runtime::status_t::SUCCESS;
+	});
+	/****************************************************************************************************************************/
 
-		auto elapsed_time = duration.count() / 1000.f / 1000.f;
-		std::cout << "Sequence elapsed time: " << elapsed_time << " ms" << std::endl;
-	}*/
+	// sockets binding pour les incrémentations
+	(*inc_calssique)[module::inc::sck::increment::in] = initializer[module::ini::sck::initialize::out];
+	(*incs[0])[module::inc_io::sck::increment_io::inout] = (*inc_calssique)[module::inc::sck::increment::out];
+	multi_comp["multiply_compare::inout_0"] = initializer[module::ini::sck::initialize::out]; // Bind de la donnée du début avec le multiplicateur !
+		for (size_t s = 0; s < incs.size() -1; s++)
+			(*incs[s+1])[module::inc_io::sck::increment_io::inout] = (*incs[s])[module::inc_io::sck::increment_io::inout];
+	
+	multi_comp["multiply_compare::inout_1"] = (*incs[incs.size()-1])[module::inc_io::sck::increment_io::inout];
+	
+	finalizer[module::fin::sck::finalize::in] = multi_comp["multiply_compare::inout_1"];
+
+	// On essaye de créer une séquence pour voir le comportement produit !
+	/*runtime::Sequence sequence_chain(initializer[module::ini::tsk::initialize], 1);
+	sequence_chain.set_n_frames(n_inter_frames);
+	sequence_chain.set_no_copy_mode(no_copy_mode);
+	// On vérifie le nombre de tâches qu'on retrouve 
+	auto tid = 0;
+	for (auto cur_initializer : sequence_chain.get_cloned_modules<module::Initializer<uint8_t>>(initializer))
 	{
-		pipeline_chain.reset(new runtime::Pipeline(
-		                     source[module::src::tsk::generate], // first task of the sequence
-		                     { // pipeline stage 0
-		                       { { &source[module::src::tsk::generate] },   // first tasks of stage 0
-		                         { &source[module::src::tsk::generate] } }, // last  tasks of stage 0
-		                       // pipeline stage 1
-		                       { { &(*rlys_io[             0])[module::rly_io::tsk::relay_io] },   // first tasks of stage 1
-		                         { &(*rlys_io[rlys_io.size()/3])[module::rly_io::tsk::relay_io] } }, // last  tasks of stage 1
-
-                                 { { &(*rlys_io[(rlys_io.size()/3)+1])[module::rly_io::tsk::relay_io] },   // first tasks of stage 2
-		                         { &(*rlys_io[(rlys_io.size()/3)+1])[module::rly_io::tsk::relay_io] } },
-
-                                 { { &(*rlys_io[(rlys_io.size()/3)+2])[module::rly_io::tsk::relay_io] },   // first tasks of stage 3
-		                         { &(*rlys_io[rlys_io.size()-1])[module::rly_io::tsk::relay_io] } },
-
-		                       // pipeline stage 2
-		                       { {&sink[module::snk::tsk::send_count] },   // first tasks of stage 4
-		                         {                                     } }, // last  tasks of stage 4
-		                     },
-		                     {
-		                       1,                         // number of threads in the stage 0
-		                       3,//n_threads ? n_threads : 1, // number of threads in the stage 1
-		                       1,
-                               6,
-                               1,                          // number of threads in the stage 2
-		                     },
-		                     {
-		                       buffer_size, // synchronization buffer size between stages 0 and 1
-		                       buffer_size, // synchronization buffer size between stages 1 and 2
-                               buffer_size, // synchronization buffer size between stages 2 and 3
-                               buffer_size, // synchronization buffer size between stages 3 and 4
-		                     },
-		                     {
-		                       active_waiting, // type of waiting between stages 0 and 1 (true = active, false = passive)
-		                       active_waiting, // type of waiting between stages 1 and 2 (true = active, false = passive)
-                               active_waiting, // type of waiting between stages 1 and 2 (true = active, false = passive)
-                               active_waiting, // type of waiting between stages 1 and 2 (true = active, false = passive)
-		                     }));
-		pipeline_chain->set_n_frames(n_inter_frames);
-        
-
-		if (!dot_filepath.empty())
-		{
-			std::ofstream file(dot_filepath);
-			pipeline_chain->export_dot(file);
-		}
-
-		// configuration of the sequence tasks
-		for (auto& mod : pipeline_chain->get_modules<module::Module>(false)) for (auto& tsk : mod->tasks)
-		{
-			tsk->reset          (           );
-			tsk->set_debug      (debug      ); // disable the debug mode
-			tsk->set_debug_limit(16         ); // display only the 16 first bits if the debug mode is enabled
-			tsk->set_stats      (print_stats); // enable the statistics
-			tsk->set_fast       (true       ); // enable the fast mode (= disable the useless verifs in the tasks)
-		}
-
-
-		auto t_start = std::chrono::steady_clock::now();
-		pipeline_chain->exec();
-		std::chrono::nanoseconds duration = std::chrono::steady_clock::now() - t_start;
-
-		auto elapsed_time = duration.count() / 1000.f / 1000.f;
-		std::cout << "Sequence elapsed time: " << elapsed_time << " ms" << std::endl;
+		std::vector<std::vector<uint8_t>> init_data(n_inter_frames, std::vector<uint8_t>(data_length, 0));
+		for (size_t f = 0; f < n_inter_frames; f++)
+			std::fill(init_data[f].begin(), init_data[f].end(), 1);
+		cur_initializer->set_init_data(init_data);
+		tid++;
 	}
 
-	size_t in_filesize = filesize(in_filepath.c_str());
-	size_t n_frames = ((int)std::ceil((float)(in_filesize * 8) / (float)(data_length * n_inter_frames)));
-	auto theoretical_time = (n_frames * ((rlys_io.size()) * sleep_time_us * 1000) * n_inter_frames) / 1000.f / 1000.f / n_threads;
+	if (!dot_filepath.empty())
+	{
+		std::ofstream file(dot_filepath);
+		sequence_chain.export_dot(file);
+	}
+
+	// configuration of the sequence tasks
+	for (auto& mod : sequence_chain.get_modules<module::Module>(false)) for (auto& tsk : mod->tasks)
+	{
+		tsk->reset          (           );
+		tsk->set_debug      (true      ); // disable the debug mode
+		tsk->set_debug_limit(16         ); // display only the 16 first bits if the debug mode is enabled
+		tsk->set_stats      (print_stats); // enable the statistics
+		tsk->set_fast       (true       ); // enable the fast mode (= disable the useless verifs in the tasks)
+	}
+
+	size_t n_exec = 1;
+
+	std::atomic<unsigned int> counter(0);
+	auto t_start = std::chrono::steady_clock::now();
+	if (!step_by_step)
+	{
+		// execute the sequence (multi-threaded)
+		sequence_chain.exec([&counter, n_exec]() { return ++counter >= n_exec; });
+	}
+	
+	std::chrono::nanoseconds duration = std::chrono::steady_clock::now() - t_start;
+
+	auto elapsed_time = duration.count() / 1000.f / 1000.f;
+	std::cout << "Sequence elapsed time: " << elapsed_time << " ms" << std::endl;
+
+	size_t chain_sleep_time = 0;
+	for (auto &inc : incs)
+		chain_sleep_time += inc->get_ns();
+
+	auto theoretical_time = (chain_sleep_time * n_exec * n_inter_frames) / 1000.f / 1000.f / n_threads;
 	std::cout << "Sequence theoretical time: " << theoretical_time << " ms" << std::endl;
 
 	// verification of the sequence execution
-	bool tests_passed = compare_files(in_filepath, out_filepath);
+	bool tests_passed = true;
+	tid = 0;
+	for (auto cur_finalizer : sequence_chain.get_cloned_modules<module::Finalizer<uint8_t>>(finalizer))
+	{
+		for (size_t f = 0; f < n_inter_frames; f++)
+		{
+			const auto &final_data = cur_finalizer->get_final_data()[f];
+			for (size_t d = 0; d < final_data.size(); d++)
+			{
+				auto expected = (int)(incs.size() + (2));
+				expected = expected % 256;
+				if (final_data[d] != expected)
+				{
+					std::cout << "# expected = " << +expected << " - obtained = "
+					          << +final_data[d] << " (d = " << d << ", tid = " << tid << ")" << std::endl;
+					tests_passed = false;
+				}
+			}
+		}
+		tid++;
+	}
+
 	if (tests_passed)
 		std::cout << "# " << rang::style::bold << rang::fg::green << "Tests passed!" << rang::style::reset << std::endl;
 	else
 		std::cout << "# " << rang::style::bold << rang::fg::red << "Tests failed :-(" << rang::style::reset << std::endl;
+
 	unsigned int test_results = !tests_passed;
 
+	// display the statistics of the tasks (if enabled)
+	if (print_stats)
+	{
+		std::cout << "#" << std::endl;
+		tools::Stats::show(sequence_chain.get_modules_per_types(), true, false);
+	}
+
+	sequence_chain.set_n_frames(1);*/
+
+	
+
+	
+
+
+	/*###############################################################################################################################*/
+														// Partie Pipeline 
+ 
+	
+	std::unique_ptr<runtime::Pipeline> pipeline_chain;
+
+	
+		pipeline_chain.reset(new runtime::Pipeline(
+		                     initializer[module::ini::tsk::initialize], // first task of the sequence
+		                     { // pipeline stage 0
+		                       { { &initializer[module::ini::tsk::initialize] },   // first tasks of stage 0
+		                         { &initializer[module::ini::tsk::initialize] } }, // last  tasks of stage 0
+		                       // pipeline stage 1
+		                       { { &(*inc_calssique)[module::inc::tsk::increment] },   // first tasks of stage 1
+		                         { &(*incs[incs.size() -1])[module::inc_io::tsk::increment_io] } }, // last  tasks of stage 1
+
+								{ { &task_multi_comp },   // first tasks of stage 1
+		                         { &task_multi_comp} }, // last  tasks of stage 1
+		                       // pipeline stage 2
+		                       { {& finalizer[module::fin::tsk::finalize] },   // first tasks of stage 2
+		                         {                                     } }, // last  tasks of stage 2
+		                     },
+		                     {
+		                       1,                         // number of threads in the stage 0
+		                       14,						// number of threads in the stage 1
+							   1,
+		                       1                          // number of threads in the stage 2
+		                     },
+		                     {
+		                       buffer_size, // synchronization buffer size between stages 0 and 1
+		                       buffer_size, // synchronization buffer size between stages 1 and 2
+							   buffer_size, // synchronization buffer size between stages 1 and 2
+		                     },
+		                     {
+		                       active_waiting, // type of waiting between stages 0 and 1 (true = active, false = passive)
+		                       active_waiting, // type of waiting between stages 1 and 2 (true = active, false = passive)
+							   active_waiting, // type of waiting between stages 1 and 2 (true = active, false = passive)
+		                     }));
+		pipeline_chain->set_n_frames(n_inter_frames);
+
+	// Remplissage des donénes en entrée 
+	auto tid = 0;
+	for (auto cur_initializer : pipeline_chain.get()->get_stages()[0]->get_cloned_modules<module::Initializer<uint8_t>>(initializer))
+	{
+		std::vector<std::vector<uint8_t>> init_data(n_inter_frames, std::vector<uint8_t>(data_length, 0));
+		for (size_t f = 0; f < n_inter_frames; f++)
+			std::fill(init_data[f].begin(), init_data[f].end(), 1);
+		cur_initializer->set_init_data(init_data);
+		tid++;
+			// Print les donées en entrées du vecteur 
+	}
+
+
+
+	if (!dot_filepath.empty())
+	{
+		std::ofstream file(dot_filepath);
+		pipeline_chain->export_dot(file);
+	}
+	// configuration of the sequence tasks
+	for (auto& mod : pipeline_chain->get_modules<module::Module>(false)) for (auto& tsk : mod->tasks)
+	{
+		tsk->reset          (           );
+		tsk->set_debug      (true      ); // disable the debug mode
+		tsk->set_debug_limit(16         ); // display only the 16 first bits if the debug mode is enabled
+		tsk->set_stats      (print_stats); // enable the statistics
+		tsk->set_fast       (true       ); // enable the fast mode (= disable the useless verifs in the tasks)
+	}
+	
+	auto t_start = std::chrono::steady_clock::now();
+	pipeline_chain->exec([](){return true;});
+	std::chrono::nanoseconds duration = std::chrono::steady_clock::now() - t_start;
+	auto elapsed_time = duration.count() / 1000.f / 1000.f;
+	std::cout << "Sequence elapsed time: " << elapsed_time << " ms" << std::endl;
+
+	// verification of the sequence execution
+	bool tests_passed = true;
+	tid = 0;
+	
+	for (auto cur_finalizer : pipeline_chain.get()->get_stages()[pipeline_chain.get()->get_stages().size()-1]->get_cloned_modules<module::Finalizer<uint8_t>>(finalizer))
+	{
+		for (size_t f = 0; f < n_inter_frames; f++)
+		{
+			const auto &final_data = cur_finalizer->get_final_data()[f];
+			for (size_t d = 0; d < final_data.size(); d++)
+			{
+
+				std::cout <<"La donnée : " << d << " vaut : " << +final_data[d] << std::endl;
+
+				auto expected = (int)(incs.size() + 2);
+				expected = expected % 256;
+				if (final_data[d] != expected)
+				{
+					std::cout << "# expected = " << +expected << " - obtained = "
+					          << +final_data[d] << " (d = " << d << ", tid = " << tid << ")" << std::endl;
+					tests_passed = false;
+				}
+			}
+		}
+		tid++;
+	}
+	
+	if (tests_passed)
+		std::cout << "# " << rang::style::bold << rang::fg::green << "Tests passed!" << rang::style::reset << std::endl;
+	else
+		std::cout << "# " << rang::style::bold << rang::fg::red << "Tests failed :-(" << rang::style::reset << std::endl;
+
+	unsigned int test_results = !tests_passed;
+
+	
 	// display the statistics of the tasks (if enabled)
 	/*if (print_stats)
 	{
@@ -380,23 +445,27 @@ int main(int argc, char** argv)
 	}*/
 
 	// sockets unbinding
-	/*if (force_sequence)
-		sequence_chain->set_n_frames(1);*/
+	//if (force_sequence)
+	//	sequence_chain->set_n_frames(1);
 	{
 		pipeline_chain->set_n_frames(1);
 		pipeline_chain->unbind_adaptors();
 	}
-	(*rlys_io[0])[module::rly_io::sck::relay_io::inout].unbind(source[module::src::sck::generate::out_data]); // Unbind de la source et la première tache FWD
 
+	(*inc_calssique)[module::inc::sck::increment::in].unbind(initializer[module::ini::sck::initialize::out]);
+	multi_comp["multiply_compare::inout_0"].unbind(initializer[module::ini::sck::initialize::out]);
+	(*incs[0])[module::inc_io::sck::increment_io::inout].unbind((*inc_calssique)[module::inc::sck::increment::out]);
 
-	for (size_t s = 0; s < rlys_io.size() -1; s++)
-		(*rlys_io[s+1])[module::rly_io::sck::relay_io::inout].unbind((*rlys_io[s])[module::rly_io::sck::relay_io::inout]);
+	for (size_t s = 0; s < incs.size() -1; s++)
+		(*incs[s+1])[module::inc_io::sck::increment_io::inout].unbind((*incs[s])[module::inc_io::sck::increment_io::inout]);
 
-    
-    (*rlys_io[rlys_io.size()/2])[module::rly_io::sck::relay_io::inout].unbind( (*rlys_io[rlys_io.size()/4])[module::rly_io::sck::relay_io::inout]);
-    
-    sink[module::snk::sck::send_count::in_data].unbind((*rlys_io[rlys_io.size() -1])[module::rly_io::sck::relay_io::inout]);
-	sink[module::snk::sck::send_count::in_count].unbind(source[module::src::sck::generate::out_count]);
+	
 
+	multi_comp["multiply_compare::inout_1"].unbind((*incs[incs.size()-1])[module::inc_io::sck::increment_io::inout]);
+
+	finalizer[module::fin::sck::finalize::in].unbind(multi_comp["multiply_compare::inout_1"]);
+	
 	return test_results;
+
+	
 }
