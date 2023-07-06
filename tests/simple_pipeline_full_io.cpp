@@ -61,8 +61,8 @@ int main(int argc, char** argv)
 	size_t sleep_time_us = 5;
 	size_t data_length = 4096;
 	size_t buffer_size = 64;
-	std::string dot_filepath = "./dot_full_io";
-	std::string in_filepath = "./text.txt";
+	std::string dot_filepath;
+	std::string in_filepath;
 	std::string out_filepath = "file.out";
 	bool no_copy_mode = true;
 	bool print_stats = false;
@@ -175,9 +175,9 @@ int main(int argc, char** argv)
 		}
 	}
 
-	std::cout << "####################################" << std::endl;
-	std::cout << "# Micro-benchmark: Simple pipeline #" << std::endl;
-	std::cout << "####################################" << std::endl;
+	std::cout << "#################################################" << std::endl;
+	std::cout << "# Micro-benchmark: Simple pipeline full forward #" << std::endl;
+	std::cout << "#################################################" << std::endl;
 	std::cout << "#" << std::endl;
 
 	std::cout << "# Command line arguments:" << std::endl;
@@ -208,7 +208,6 @@ int main(int argc, char** argv)
 	module::Sink_user_binary<uint8_t> sink(data_length, out_filepath);
 
 
-    // Création de 3 modules relay_io pour le passage de la donnée en mode FWD
     std::vector<std::shared_ptr<module::Relayer_io<uint8_t>>> rlys_io(2);
 	for (size_t s = 0; s < rlys_io.size(); s++)
 	{
@@ -228,10 +227,10 @@ int main(int argc, char** argv)
     sink[module::snk::sck::send_count::in_data] = (*rlys_io[rlys_io.size() -1])[module::rly_io::sck::relay_io::inout]; // Bind du dernier IO avec le premier élement de l'étage suivant
 	sink[module::snk::sck::send_count::in_count] = source[module::src::sck::generate::out_count];
  
-	//std::unique_ptr<runtime::Sequence> sequence_chain;
+	std::unique_ptr<runtime::Sequence> sequence_chain;
 	std::unique_ptr<runtime::Pipeline> pipeline_chain;
 
-	/*if (force_sequence)
+	if (force_sequence)
 	{
 		sequence_chain.reset(new runtime::Sequence(source[module::src::tsk::generate], n_threads));
 		sequence_chain->set_n_frames(n_inter_frames);
@@ -265,7 +264,7 @@ int main(int argc, char** argv)
 					for (size_t tid = 0; tid < n_threads; tid++)
 						while (sequence_chain->exec_step(tid));
 				}
-				catch (tools::processing_aborted &) { b do nothing  }
+				catch (tools::processing_aborted &) { /* do nothing */  }
 			}
 			while (!source.is_done());
 		}
@@ -273,7 +272,7 @@ int main(int argc, char** argv)
 
 		auto elapsed_time = duration.count() / 1000.f / 1000.f;
 		std::cout << "Sequence elapsed time: " << elapsed_time << " ms" << std::endl;
-	}*/
+	}
 	{
 		pipeline_chain.reset(new runtime::Pipeline(
 		                     source[module::src::tsk::generate], // first task of the sequence
@@ -289,7 +288,7 @@ int main(int argc, char** argv)
 		                     },
 		                     {
 		                       1,                         // number of threads in the stage 0
-		                       14,//n_threads ? n_threads : 1, // number of threads in the stage 1
+		                       n_threads ? n_threads : 1, // number of threads in the stage 1
 		                       1                          // number of threads in the stage 2
 		                     },
 		                     {
@@ -342,7 +341,7 @@ int main(int argc, char** argv)
 	unsigned int test_results = !tests_passed;
 
 	// display the statistics of the tasks (if enabled)
-	/*if (print_stats)
+	if (print_stats)
 	{
 		std::cout << "#" << std::endl;
 		if (force_sequence)
@@ -357,12 +356,12 @@ int main(int argc, char** argv)
 				tools::Stats::show(stages[s]->get_tasks_per_types(), true, false);
 			}
 		}
-	}*/
+	}
 
 	// sockets unbinding
-	/*if (force_sequence)
-		sequence_chain->set_n_frames(1);*/
-	{
+	if (force_sequence)
+		sequence_chain->set_n_frames(1);
+	else {
 		pipeline_chain->set_n_frames(1);
 		pipeline_chain->unbind_adaptors();
 	}

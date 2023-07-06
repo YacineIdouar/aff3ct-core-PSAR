@@ -60,8 +60,8 @@ int main(int argc, char** argv)
 	size_t sleep_time_us = 5;
 	size_t data_length =512;
 	size_t buffer_size =5;
-	std::string dot_filepath = "./dot_pip_simple";
-	std::string in_filepath = "./text.txt";
+	std::string dot_filepath;
+	std::string in_filepath;
 	std::string out_filepath = "file.out";
 	bool no_copy_mode = true;
 	bool print_stats = false;
@@ -282,7 +282,7 @@ int main(int argc, char** argv)
 		                     },
 		                     {
 		                       1,                         // number of threads in the stage 0
-		                       1,//n_threads ? n_threads : 1, // number of threads in the stage 1
+		                       n_threads ? n_threads : 1, // number of threads in the stage 1
 		                       1                          // number of threads in the stage 2
 		                     },
 		                     {

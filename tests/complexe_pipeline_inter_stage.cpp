@@ -21,13 +21,9 @@ int main(int argc, char** argv)
 		{"data-length", required_argument, NULL, 'd'},
 		{"buffer-size", required_argument, NULL, 'u'},
 		{"dot-filepath", required_argument, NULL, 'o'},
-		{"in-filepath", required_argument, NULL, 'i'},
-		{"out-filepath", required_argument, NULL, 'j'},
 		{"copy-mode", no_argument, NULL, 'c'},
 		{"print-stats", no_argument, NULL, 'p'},
-		{"step-by-step", no_argument, NULL, 'b'},
 		{"debug", no_argument, NULL, 'g'},
-		{"force-sequence", no_argument, NULL, 'q'},
 		{"active-waiting", no_argument, NULL, 'w'},
 		{"help", no_argument, NULL, 'h'},
 		{0}};
@@ -35,14 +31,11 @@ int main(int argc, char** argv)
 	size_t n_threads = std::thread::hardware_concurrency();
 	size_t n_inter_frames = 1;
 	size_t sleep_time_us = 5;
-	size_t data_length = 16;
-	size_t buffer_size = 64;
-	std::string dot_filepath = "./dot_full_io";
-	bool no_copy_mode = true;
+	size_t data_length = 2048;
+	size_t buffer_size = 16;
+	std::string dot_filepath;
 	bool print_stats = false;
-	bool step_by_step = false;
 	bool debug = false;
-	bool force_sequence = false;
 	bool active_waiting = false;
 
 	while (1)
@@ -70,23 +63,14 @@ int main(int argc, char** argv)
 			case 'o':
 				dot_filepath = std::string(optarg);
 				break;
-			case 'c':
-				no_copy_mode = false;
-				break;
 			case 'p':
 				print_stats = true;
-				break;
-			case 'b':
-				step_by_step = true;
 				break;
 			case 'g':
 				debug = true;
 				break;
 			case 'w':
 				active_waiting = true;
-				break;
-			case 'q':
-				force_sequence = true;
 				break;
 			case 'h':
 				std::cout << "usage: " << argv[0] << " [options]" << std::endl;
@@ -109,21 +93,12 @@ int main(int argc, char** argv)
 				std::cout << "  -o, --dot-filepath    "
 				          << "Path to dot output file                                               "
 				          << "[" << (dot_filepath.empty() ? "empty" : "\"" + dot_filepath + "\"") << "]" << std::endl;
-				std::cout << "  -c, --copy-mode       "
-				          << "Enable to copy data in sequence (performance will be reduced)         "
-				          << "[" << (no_copy_mode ? "true" : "false") << "]" << std::endl;
-				std::cout << "  -b, --step-by-step    "
-				          << "Enable step-by-step sequence execution (performance will be reduced)  "
-				          << "[" << (step_by_step ? "true" : "false") << "]" << std::endl;
 				std::cout << "  -p, --print-stats     "
 				          << "Enable to print per task statistics (performance will be reduced)     "
 				          << "[" << (print_stats ? "true" : "false") << "]" << std::endl;
 				std::cout << "  -g, --debug           "
 				          << "Enable task debug mode (print socket data)                            "
 				          << "[" << (debug ? "true" : "false") << "]" << std::endl;
-				std::cout << "  -q, --force-sequence  "
-				          << "Force sequence instead of pipeline                                    "
-				          << "[" << (force_sequence ? "true" : "false") << "]" << std::endl;
 				std::cout << "  -w, --active-waiting  "
 				          << "Enable active waiting in the pipeline synchronizations                "
 				          << "[" << (active_waiting ? "true" : "false") << "]" << std::endl;
@@ -137,9 +112,9 @@ int main(int argc, char** argv)
 		}
 	}
 
-	std::cout << "####################################" << std::endl;
-	std::cout << "# Micro-benchmark: Complexe pipeline #" << std::endl;
-	std::cout << "####################################" << std::endl;
+	std::cout << "############################################################" << std::endl;
+	std::cout << "# Micro-benchmark: Complexe pipeline increment and compare #" << std::endl;
+	std::cout << "############################################################" << std::endl;
 	std::cout << "#" << std::endl;
 
 	std::cout << "# Command line arguments:" << std::endl;
@@ -149,22 +124,12 @@ int main(int argc, char** argv)
 	std::cout << "#   - data_length    = " << data_length << std::endl;
 	std::cout << "#   - buffer_size    = " << buffer_size << std::endl;
 	std::cout << "#   - dot_filepath   = " << (dot_filepath.empty() ? "[empty]" : dot_filepath.c_str()) << std::endl;
-	std::cout << "#   - no_copy_mode   = " << (no_copy_mode ? "true" : "false") << std::endl;
 	std::cout << "#   - print_stats    = " << (print_stats ? "true" : "false") << std::endl;
-	std::cout << "#   - step_by_step   = " << (step_by_step ? "true" : "false") << std::endl;
 	std::cout << "#   - debug          = " << (debug ? "true" : "false") << std::endl;
-	std::cout << "#   - force_sequence = " << (force_sequence ? "true" : "false") << std::endl;
 	std::cout << "#   - active_waiting = " << (active_waiting ? "true" : "false") << std::endl;
 	std::cout << "#" << std::endl;
 
-	if (!force_sequence && !no_copy_mode)
-		std::clog << rang::tag::warning << "'no_copy_mode' has no effect with pipeline (it is always enable)" << std::endl;
-	if (!force_sequence && step_by_step)
-		std::clog << rang::tag::warning << "'step_by_step' is not available with pipeline" << std::endl;
-
-	// modules creation
-	const bool auto_reset = false;
-	// modules creation
+	
 	module::Initializer<uint8_t> initializer(data_length);
 	module::Finalizer  <uint8_t> finalizer  (data_length);
 
@@ -181,32 +146,28 @@ int main(int argc, char** argv)
 	inc_calssique->set_ns(sleep_time_us * 1000);
 	inc_calssique->set_custom_name("Inc");
 	/****************************************************************************************************************************/
-	// Création d'un nouveau module Stateless
+	// StateLess module used only for the test
 	module::Stateless multi_comp;
 	multi_comp.set_name("Multiplier_comparator");
 	auto& task_multi_comp = multi_comp.create_task("multiply_compare");
 	auto sock_0 = multi_comp.create_socket_inout<uint8_t>(task_multi_comp,"inout_0",data_length);
 	auto sock_1 = multi_comp.create_socket_inout<uint8_t>(task_multi_comp,"inout_1",data_length);
 	
-	multi_comp.create_codelet(task_multi_comp,[sock_0, sock_1,data_length](module::Module &m, runtime::Task &t, const size_t frame_id) -> int
+	multi_comp.create_codelet(task_multi_comp,[sock_0, sock_1,data_length,incs](module::Module &m, runtime::Task &t, const size_t frame_id) -> int
 	{
-		auto &mul_com = static_cast<module::Stateless&>(m);
-		auto tab_0 = static_cast<uint8_t*>(t[sock_0].get_dataptr()); // Récupère le tableau de base qu'on doit multiplier
-		auto tab_1 = (uint8_t*)(t[sock_1].get_dataptr()); // Le tableau après n addition
-		// Réalisation de la multiplication
+		auto tab_0 = static_cast<uint8_t*>(t[sock_0].get_dataptr());
+		auto tab_1 = (uint8_t*)(t[sock_1].get_dataptr()); 
 		for (size_t i=0; i<data_length ;++i){
-			tab_0[i] = tab_0[i]*7;
-		}
-		// La comparaison des valeurs 
+			tab_0[i] = tab_0[i]*(incs.size()+1)+1;
+		} 
 		for (size_t i=0;i<data_length;i++)
 			if(tab_0[i] != tab_1[i]){
-				std::cout << "Les valuers sont différentes !" << " Tab_0 : " << unsigned (tab_0[i]) <<  " Tab_1 : " << unsigned (tab_1[i]) << std::endl;
+				std::cout << "Les valuers sont différentes => " << " Tab_0 : " << unsigned (tab_0[i]) <<  ", Tab_1 : " << unsigned (tab_1[i]) << std::endl;
 				return runtime::status_t::FAILURE;
 			}
-		std::cout << "Toutes les valeurs sont les même !!" << std::endl;
+		std::cout << "Toutes les valeurs sont bonnes " << "Expected : " << unsigned (tab_0[0]) << ", got : " << unsigned (tab_1[0]) <<std::endl;
 		return runtime::status_t::SUCCESS;
 	});
-	/****************************************************************************************************************************/
 
 	// sockets binding pour les incrémentations
 	(*inc_calssique)[module::inc::sck::increment::in] = initializer[module::ini::sck::initialize::out];
@@ -219,144 +180,45 @@ int main(int argc, char** argv)
 	
 	finalizer[module::fin::sck::finalize::in] = multi_comp["multiply_compare::inout_1"];
 
-	// On essaye de créer une séquence pour voir le comportement produit !
-	/*runtime::Sequence sequence_chain(initializer[module::ini::tsk::initialize], 1);
-	sequence_chain.set_n_frames(n_inter_frames);
-	sequence_chain.set_no_copy_mode(no_copy_mode);
-	// On vérifie le nombre de tâches qu'on retrouve 
-	auto tid = 0;
-	for (auto cur_initializer : sequence_chain.get_cloned_modules<module::Initializer<uint8_t>>(initializer))
-	{
-		std::vector<std::vector<uint8_t>> init_data(n_inter_frames, std::vector<uint8_t>(data_length, 0));
-		for (size_t f = 0; f < n_inter_frames; f++)
-			std::fill(init_data[f].begin(), init_data[f].end(), 1);
-		cur_initializer->set_init_data(init_data);
-		tid++;
-	}
-
-	if (!dot_filepath.empty())
-	{
-		std::ofstream file(dot_filepath);
-		sequence_chain.export_dot(file);
-	}
-
-	// configuration of the sequence tasks
-	for (auto& mod : sequence_chain.get_modules<module::Module>(false)) for (auto& tsk : mod->tasks)
-	{
-		tsk->reset          (           );
-		tsk->set_debug      (true      ); // disable the debug mode
-		tsk->set_debug_limit(16         ); // display only the 16 first bits if the debug mode is enabled
-		tsk->set_stats      (print_stats); // enable the statistics
-		tsk->set_fast       (true       ); // enable the fast mode (= disable the useless verifs in the tasks)
-	}
-
-	size_t n_exec = 1;
-
-	std::atomic<unsigned int> counter(0);
-	auto t_start = std::chrono::steady_clock::now();
-	if (!step_by_step)
-	{
-		// execute the sequence (multi-threaded)
-		sequence_chain.exec([&counter, n_exec]() { return ++counter >= n_exec; });
-	}
 	
-	std::chrono::nanoseconds duration = std::chrono::steady_clock::now() - t_start;
-
-	auto elapsed_time = duration.count() / 1000.f / 1000.f;
-	std::cout << "Sequence elapsed time: " << elapsed_time << " ms" << std::endl;
-
-	size_t chain_sleep_time = 0;
-	for (auto &inc : incs)
-		chain_sleep_time += inc->get_ns();
-
-	auto theoretical_time = (chain_sleep_time * n_exec * n_inter_frames) / 1000.f / 1000.f / n_threads;
-	std::cout << "Sequence theoretical time: " << theoretical_time << " ms" << std::endl;
-
-	// verification of the sequence execution
-	bool tests_passed = true;
-	tid = 0;
-	for (auto cur_finalizer : sequence_chain.get_cloned_modules<module::Finalizer<uint8_t>>(finalizer))
-	{
-		for (size_t f = 0; f < n_inter_frames; f++)
-		{
-			const auto &final_data = cur_finalizer->get_final_data()[f];
-			for (size_t d = 0; d < final_data.size(); d++)
-			{
-				auto expected = (int)(incs.size() + (2));
-				expected = expected % 256;
-				if (final_data[d] != expected)
-				{
-					std::cout << "# expected = " << +expected << " - obtained = "
-					          << +final_data[d] << " (d = " << d << ", tid = " << tid << ")" << std::endl;
-					tests_passed = false;
-				}
-			}
-		}
-		tid++;
-	}
-
-	if (tests_passed)
-		std::cout << "# " << rang::style::bold << rang::fg::green << "Tests passed!" << rang::style::reset << std::endl;
-	else
-		std::cout << "# " << rang::style::bold << rang::fg::red << "Tests failed :-(" << rang::style::reset << std::endl;
-
-	unsigned int test_results = !tests_passed;
-
-	// display the statistics of the tasks (if enabled)
-	if (print_stats)
-	{
-		std::cout << "#" << std::endl;
-		tools::Stats::show(sequence_chain.get_modules_per_types(), true, false);
-	}
-
-	sequence_chain.set_n_frames(1);*/
-
-	
-
-	
-
-
-	/*###############################################################################################################################*/
-														// Partie Pipeline 
  
-	
 	std::unique_ptr<runtime::Pipeline> pipeline_chain;
 
 	
 		pipeline_chain.reset(new runtime::Pipeline(
 		                     initializer[module::ini::tsk::initialize], // first task of the sequence
-		                     { // pipeline stage 0
+		                     {  // pipeline stage 0
 		                       { { &initializer[module::ini::tsk::initialize] },   // first tasks of stage 0
 		                         { &initializer[module::ini::tsk::initialize] } }, // last  tasks of stage 0
-		                       // pipeline stage 1
+		                        // pipeline stage 1
 		                       { { &(*inc_calssique)[module::inc::tsk::increment] },   // first tasks of stage 1
 		                         { &(*incs[incs.size() -1])[module::inc_io::tsk::increment_io] } }, // last  tasks of stage 1
-
-								{ { &task_multi_comp },   // first tasks of stage 1
-		                         { &task_multi_comp} }, // last  tasks of stage 1
-		                       // pipeline stage 2
-		                       { {& finalizer[module::fin::tsk::finalize] },   // first tasks of stage 2
-		                         {                                     } }, // last  tasks of stage 2
+								// pipeline stage 3
+								{ { &task_multi_comp },   // first tasks of stage 2
+		                         { &task_multi_comp} },   // last  tasks of stage 2
+		                        // pipeline stage 3
+		                       { {& finalizer[module::fin::tsk::finalize] }, // first tasks of stage 3
+		                         {                                     } },  // last  tasks of stage 3
 		                     },
 		                     {
-		                       1,                         // number of threads in the stage 0
-		                       14,						// number of threads in the stage 1
-							   1,
-		                       1                          // number of threads in the stage 2
+		                       1,											// number of threads in the stage 0
+		                       n_threads ? n_threads : 1,					// number of threads in the stage 1
+							   1,											// number of threads in the stage 2
+		                       1                       						// number of threads in the stage 3
 		                     },
 		                     {
 		                       buffer_size, // synchronization buffer size between stages 0 and 1
 		                       buffer_size, // synchronization buffer size between stages 1 and 2
-							   buffer_size, // synchronization buffer size between stages 1 and 2
+							   buffer_size, // synchronization buffer size between stages 2 and 3
 		                     },
 		                     {
 		                       active_waiting, // type of waiting between stages 0 and 1 (true = active, false = passive)
 		                       active_waiting, // type of waiting between stages 1 and 2 (true = active, false = passive)
-							   active_waiting, // type of waiting between stages 1 and 2 (true = active, false = passive)
+							   active_waiting, // type of waiting between stages 2 and 3 (true = active, false = passive)
 		                     }));
 		pipeline_chain->set_n_frames(n_inter_frames);
 
-	// Remplissage des donénes en entrée 
+	// Getting the input data
 	auto tid = 0;
 	for (auto cur_initializer : pipeline_chain.get()->get_stages()[0]->get_cloned_modules<module::Initializer<uint8_t>>(initializer))
 	{
@@ -365,10 +227,7 @@ int main(int argc, char** argv)
 			std::fill(init_data[f].begin(), init_data[f].end(), 1);
 		cur_initializer->set_init_data(init_data);
 		tid++;
-			// Print les donées en entrées du vecteur 
 	}
-
-
 
 	if (!dot_filepath.empty())
 	{
@@ -379,7 +238,7 @@ int main(int argc, char** argv)
 	for (auto& mod : pipeline_chain->get_modules<module::Module>(false)) for (auto& tsk : mod->tasks)
 	{
 		tsk->reset          (           );
-		tsk->set_debug      (true      ); // disable the debug mode
+		tsk->set_debug      (debug     );  // disable the debug mode
 		tsk->set_debug_limit(16         ); // display only the 16 first bits if the debug mode is enabled
 		tsk->set_stats      (print_stats); // enable the statistics
 		tsk->set_fast       (true       ); // enable the fast mode (= disable the useless verifs in the tasks)
@@ -402,9 +261,6 @@ int main(int argc, char** argv)
 			const auto &final_data = cur_finalizer->get_final_data()[f];
 			for (size_t d = 0; d < final_data.size(); d++)
 			{
-
-				std::cout <<"La donnée : " << d << " vaut : " << +final_data[d] << std::endl;
-
 				auto expected = (int)(incs.size() + 2);
 				expected = expected % 256;
 				if (final_data[d] != expected)
@@ -425,32 +281,11 @@ int main(int argc, char** argv)
 
 	unsigned int test_results = !tests_passed;
 
-	
-	// display the statistics of the tasks (if enabled)
-	/*if (print_stats)
-	{
-		std::cout << "#" << std::endl;
-		if (force_sequence)
-			tools::Stats::show(sequence_chain->get_modules_per_types(), true, false);
-		else
-		{
-			auto stages = pipeline_chain->get_stages();
-			for (size_t s = 0; s < stages.size(); s++)
-			{
-				const int n_threads = stages[s]->get_n_threads();
-				std::cout << "#" << std::endl << "# Pipeline stage " << s << " (" << n_threads << " thread(s)): " << std::endl;
-				tools::Stats::show(stages[s]->get_tasks_per_types(), true, false);
-			}
-		}
-	}*/
 
-	// sockets unbinding
-	//if (force_sequence)
-	//	sequence_chain->set_n_frames(1);
-	{
-		pipeline_chain->set_n_frames(1);
-		pipeline_chain->unbind_adaptors();
-	}
+	// Sockets unbinding
+
+	pipeline_chain->set_n_frames(1);
+	pipeline_chain->unbind_adaptors();
 
 	(*inc_calssique)[module::inc::sck::increment::in].unbind(initializer[module::ini::sck::initialize::out]);
 	multi_comp["multiply_compare::inout_0"].unbind(initializer[module::ini::sck::initialize::out]);
