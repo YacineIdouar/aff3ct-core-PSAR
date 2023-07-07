@@ -31,7 +31,7 @@ int main(int argc, char** argv)
 	size_t n_inter_frames = 1;
 	size_t sleep_time_us = 5;
 	size_t data_length = 2048;
-	size_t n_exec = 100000;
+	size_t n_exec = 100;
 	size_t n_loop_out = 5;
 	size_t n_loop_in = 2;
 	std::string dot_filepath;

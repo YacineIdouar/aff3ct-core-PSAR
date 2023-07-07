@@ -404,12 +404,9 @@ std::vector<std::vector<runtime::Task*>> Sequence
 				tasks_per_threads[tid].insert(tasks_per_threads[tid].end(),
 				                              cur_ss->get_c()->tasks.begin(),
 				                              cur_ss->get_c()->tasks.end());
-				/*for (auto task : cur_ss->get_c()->tasks)
-					if (std::find(tasks_per_threads[tid].begin(),
-			              tasks_per_threads[tid].end(),
-			              task) == tasks_per_threads[tid].end())
-						  tasks_per_threads[tid].push_back(task);*/
-				
+
+				for (auto c : cur_ss->get_children())
+					get_tasks_recursive(c, tid, already_parsed_nodes);
 			}
 		};
 
@@ -421,6 +418,7 @@ std::vector<std::vector<runtime::Task*>> Sequence
 
 	return tasks_per_threads;
 }
+
 
 std::vector<std::vector<runtime::Task*>> Sequence
 ::get_tasks_per_types() const
@@ -1134,7 +1132,7 @@ tools::Digraph_node<SS>* Sequence
 						}
 					}
 				}
-				else if (current_task.get_socket_type(*s) == socket_t::SIN || current_task.get_socket_type(*s) == socket_t::SINOUT)
+				else if (current_task.get_socket_type(*s) == socket_t::SIN)
 				{
 					if (s->get_bound_sockets().size() > 1)
 					{
@@ -2151,9 +2149,10 @@ void Sequence
 		[&unbind_sockets, &unbind_tasks, &unbind_sockets_recursive](const std::vector<runtime::Task*> possessed_tsks,
 		                                                            runtime::Task* tsk_out)
 		{
+			
 			for (auto sck_out : tsk_out->sockets)
 			{
-				if (tsk_out->get_socket_type(*sck_out) == socket_t::SOUT)
+				if (tsk_out->get_socket_type(*sck_out) == socket_t::SOUT || tsk_out->get_socket_type(*sck_out) == socket_t::SINOUT)
 				{
 					for (auto sck_in : sck_out->get_bound_sockets())
 					{
@@ -2182,8 +2181,10 @@ void Sequence
 
 		auto tsks_per_threads = this->get_tasks_per_threads();
 		for (size_t t = 0; t < this->get_n_threads(); t++)
-			for (auto &tsk : this->firsts_tasks[t])
+			for (auto &tsk : this->firsts_tasks[t]){
+				std::cout << "Le nombre de tache de la séquence : " << tsks_per_threads[t].size() << std::endl;
 				unbind_sockets_recursive(tsks_per_threads[t], tsk);
+			}
 
 		// set_n_frames for all the modules (be aware that this operation can fail)
 		for (auto &mm : this->all_modules)
